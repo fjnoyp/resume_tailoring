@@ -1,4 +1,8 @@
-COVER_LETTER_EVALUATION_PROMPT = """
+
+from openevals import create_llm_as_judge
+
+def cover_letter_evaluator_prompt(inputs, outputs, reference_outputs, **kwargs):
+    return f"""
 You are an expert recruiter and cover letter reviewer evaluating how well a cover letter supports a candidate's application for a specific job. Your task is to assign a score based on the following rubric:
 
 <Rubric>
@@ -46,14 +50,20 @@ When scoring, you should penalize:
 </Reminder>
 
 <job_description>
-{job_description}
+{inputs["job_description"]}
 </job_description>
 
 <cover_letter>
-{cover_letter}
+{outputs["cover_letter"]}
 </cover_letter>
 
 <tailored_resume>
-{tailored_resume}
+{outputs["tailored_resume"]}
 </tailored_resume>
 """
+
+cover_letter_evaluator = create_llm_as_judge(
+        prompt=cover_letter_evaluator_prompt,
+        model="anthropic:claude-3-5-sonnet-latest",
+        feedback_key="output_quality",
+    )

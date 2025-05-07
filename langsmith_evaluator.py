@@ -1,24 +1,11 @@
 import asyncio
 from langsmith import Client
-from openevals.llm import create_llm_as_judge
-from prompts.resume_tailoring_evaluation_prompt import RESUME_TAILORING_EVALUATION_PROMPT
-from prompts.cover_letter_evaluation_prompt import COVER_LETTER_EVALUATION_PROMPT
-from resume_tailoring_agent import process_query
+from evaluators.cover_letter_evaluator import cover_letter_evaluator
+from evaluators.resume_tailoring_evaluator import resume_tailoring_evaluator
 from samples.inputs import FULL_RESUME, JOB_DESCRIPTION, REFERENCE_RESUME
 
 client = Client()
-
-resume_tailoring_evaluator = create_llm_as_judge(
-        prompt=RESUME_TAILORING_EVALUATION_PROMPT,
-        model="anthropic:claude-3-5-sonnet-latest",
-        feedback_key="output_quality",
-    )
-
-cover_letter_evaluator = create_llm_as_judge(
-        prompt=COVER_LETTER_EVALUATION_PROMPT,
-        model="anthropic:claude-3-5-sonnet-latest",
-        feedback_key="output_quality",
-    )
+dataset_name = "Resume Tailoring Evaluator"
 
 async def target(inputs: dict) -> dict:
 #     await process_query(f"""Can you help me enhance my resume and write a cover letter for this job?
@@ -48,7 +35,7 @@ async def main():
     # Initialize (or get) the dataset
     try:
         dataset = client.create_dataset(
-            dataset_name="Resume Tailoring", description="A dataset for the resume tailoring agent."
+            dataset_name=dataset_name, description="A dataset for the resume tailoring agent."
         )
         examples = [
             {
@@ -61,16 +48,13 @@ async def main():
         ]
         client.create_examples(dataset_id=dataset.id, examples=examples)
     except:
-        datasets = list(client.list_datasets(dataset_name="Resume Tailoring"))
+        datasets = list(client.list_datasets(dataset_name=dataset_name))
         dataset = datasets[0]
-
-    for example in client.list_examples(dataset_id=dataset.id):
-        print("Example inputs:", example.inputs)
 
     # Evaluate the AI response
     await client.aevaluate(
         target,
-        data="Resume Tailoring",
+        data=dataset_name,
         evaluators=[
             resume_tailoring_evaluator,
             cover_letter_evaluator

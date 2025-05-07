@@ -1,4 +1,7 @@
-RESUME_TAILORING_EVALUATION_PROMPT = """
+from openevals import create_llm_as_judge
+
+def resume_tailoring_evaluator_prompt(inputs, outputs, reference_outputs, **kwargs):
+    return f"""
 You are an expert recruiter and resume reviewer evaluating how well a tailored resume matches a specific job description. Your task is to assign a score based on the following rubric:
 
 <Rubric>
@@ -43,14 +46,20 @@ When scoring, you should penalize:
 </Reminder>
 
 <job_description>
-{job_description}
+{inputs["job_description"]}
 </job_description>
 
 <tailored_resume>
-{tailored_resume}
+{outputs["tailored_resume"]}
 </tailored_resume>
 
 <reference_resume>
-{reference_resume}
+{inputs["reference_resume"]}
 </reference_resume>
 """
+
+resume_tailoring_evaluator = create_llm_as_judge(
+    prompt=resume_tailoring_evaluator_prompt,
+    model="anthropic:claude-3-5-sonnet-latest",
+    feedback_key="output_quality",
+)
