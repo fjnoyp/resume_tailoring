@@ -3,7 +3,7 @@ from langchain_anthropic import ChatAnthropic
 import asyncio
 from langgraph.prebuilt import create_react_agent
 from resume_tailoring_tools import resume_tailoring_tools
-import os
+from user_experience_gathering_tools import user_experience_gathering_tools
 
 # Load environment variables
 load_dotenv()
@@ -15,35 +15,45 @@ model = ChatAnthropic(
     stop=None
 )
 
-# It's working properly without directly using the prompt here,
-# it's now being used in the tools where the mdc file was referencing it
-# 
-# prompt = ChatPromptTemplate.from_messages([
-#     ("system", GENERAL_RESUME_ADVICE_PROMPT)
-# ])
+agent = create_react_agent(model, [*resume_tailoring_tools, *user_experience_gathering_tools])
 
-async def process_query(query: str):
-    print("[DEBUG] process_query called with query:", query)
-    agent = create_react_agent(model, resume_tailoring_tools)
+async def process_query(query: list, debug: bool = False):
+    if debug:
+        print("[DEBUG] process_query called with query:", query)
+
     agent_response = await agent.ainvoke({"messages": query})
-    return agent_response
+
+    if debug:
+        print("[DEBUG] agent_response:", agent_response)
+
+    return agent_response['messages'][-1].content
+
+MAX_HISTORY = 20  # or whatever fits your model's context window
+
+async def chat_loop():
+    print("Type your queries or 'quit' to exit.")
+    conversation = []  # This will store the conversation history
+
+    while True:
+        try:
+            query = input("\nQuery: ").strip()
+            if query.lower() == 'quit':
+                break
+
+            conversation.append({"role": "user", "content": query})
+            if len(conversation) > MAX_HISTORY:
+                conversation = conversation[-MAX_HISTORY:]
+
+            ai_reply = await process_query(conversation)
+
+            print("\nAI response:\n", ai_reply)
+            conversation.append({"role": "assistant", "content": ai_reply})
+
+        except Exception as e:
+            print(f"\nError: {str(e)}")
 
 async def main():
-    """Run example operation"""
-    print("[DEBUG] main() called")
-
-    result = await process_query(f"""Can you help me enhance my resume and write a cover letter for this job?
-
-Job Description:
-{os.getcwd().replace("\\", "/")}/samples/job-description.md
-
-Resume:
-{os.getcwd().replace("\\", "/")}/samples/resume.md
-
-Full Resume:
-{os.getcwd().replace("\\", "/")}/samples/linkedin-profile.md
-""")
-    print("\nAI response:", result)
+    await chat_loop()
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())
