@@ -62,4 +62,5 @@ resume_tailoring_evaluator = create_llm_as_judge(
     prompt=resume_tailoring_evaluator_prompt,
     model="anthropic:claude-3-5-sonnet-latest",
     feedback_key="output_quality",
+    continuous=True,
 )

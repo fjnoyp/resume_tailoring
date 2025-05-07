@@ -1,6 +1,5 @@
 from langchain_core.tools.base import BaseTool
 from filesystem_mcp_server_tools import invoke_filesystem_mcp_agent
-from prompts.general_resume_advice_prompt import GENERAL_RESUME_ADVICE_PROMPT
 
 async def resume_screening_tool(resume_path: str, job_description_path: str) -> BaseTool:
     """
