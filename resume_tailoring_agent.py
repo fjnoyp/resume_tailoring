@@ -1,12 +1,13 @@
 from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 from langchain_anthropic import ChatAnthropic
 import asyncio
 from langgraph.prebuilt import create_react_agent
 from resume_tailoring_tools import resume_tailoring_tools
 from user_experience_gathering_tools import user_experience_gathering_tools
-
-# Load environment variables
-load_dotenv()
 
 # Initialize the model
 model = ChatAnthropic(

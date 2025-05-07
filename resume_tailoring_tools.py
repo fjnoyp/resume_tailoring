@@ -1,5 +1,5 @@
 from langchain_core.tools.base import BaseTool
-from filesystem_mcp_server_tools import invoke_filesystem_mcp_agent
+from mcp_servers_tools import invoke_mcp_agent, filesystem_server_params
 
 async def resume_screening_tool(resume_path: str, job_description_path: str) -> BaseTool:
     """
@@ -25,9 +25,9 @@ JOB DESCRIPTION FILE PATH: {job_description_path}
 RESUME FILE PATH: {resume_path}
 """}]
     try:
-        print("[DEBUG] Agent created. About to invoke agent with messages...")
-        agent_response = await invoke_filesystem_mcp_agent(messages)
-        print("[DEBUG] Agent response in resume_screening_tool.call_tool:", agent_response["messages"][1:])
+        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
+        # print("[DEBUG] Agent response in resume_screening_tool.call_tool:", agent_response["messages"][1:])
+        print("[DEBUG] Agent response in resume_screening_tool.call_tool:", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
         print(f"[DEBUG] Error in resume_screening_tool.call_tool: {e}")
@@ -37,13 +37,13 @@ RESUME FILE PATH: {resume_path}
 
 
 
-async def resume_tailoring_tool(resume_path: str, full_resume_path: str, notes_path: str) -> BaseTool:
+async def resume_tailoring_tool(resume_path: str, full_resume_path: str | None = None, notes_path: str | None = None) -> BaseTool:
     """
 Takes the feedback from a recruiter on a resume and edits the resume based on the feedback.
 
 - notes_path: The path to the file containing the feedback from the recruiter
 - resume_path: The path to the file containing the resume to tailor
-- full_resume_path: The path to the file containing the full resume that includes the non-abridged description of all work experiences
+- full_resume_path: The path to the file containing the full resume that includes the non-abridged description of all work experiences (optional)
 """
     print(f"[DEBUG] resume_tailoring_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, notes_path={notes_path}")
 
@@ -95,14 +95,16 @@ Takes the feedback from a recruiter on a resume and edits the resume based on th
 - Please do not make up experiences, or mischaracterize an experience (e.g., saying the user did backend integration on the Jetbrains AI chat plugin when they didn't, just because the role requires backend experience). Instead, if you identify such gaps or potential misinterpretations based on the available information, mention this clearly in your response.
 
 - Use the edit_file tool to save your revised resume to the resume file provided to you. Do not just say you wrote the file — actually call the tool.
+- If you are not given a full resume file, you can use available tools to infer the full resume file in the same folder as the resume file provided to you.
 
 - You've been given tools to read the resume files - use them to read the files and edit the RESUME file provided to you.
 NOTES FILE PATH: {notes_path}
 RESUME FILE PATH: {resume_path}
-FULL RESUME FILE PATH: {full_resume_path}
+FULL RESUME FILE PATH (optional): {full_resume_path}
 """}]
-    agent_response = await invoke_filesystem_mcp_agent(messages)
-    print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][1:])
+    agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
+    # print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][1:])
+    print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][-1].content)
     return agent_response["messages"][-1].content
 
 
@@ -140,8 +142,9 @@ NOTES FILE PATH: {notes_path}
 RESUME FILE PATH: {resume_path}
 FULL RESUME FILE PATH: {full_resume_path}
 """}]
-    agent_response = await invoke_filesystem_mcp_agent(messages)
-    print("[DEBUG] Agent response in cover_letter_writing_tool.call_tool:", agent_response["messages"][1:])
+    agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
+    # print("[DEBUG] Agent response in cover_letter_writing_tool.call_tool:", agent_response["messages"][1:])
+    print("[DEBUG] Agent response in cover_letter_writing_tool.call_tool:", agent_response["messages"][-1].content)
     return agent_response["messages"][-1].content
 
 
