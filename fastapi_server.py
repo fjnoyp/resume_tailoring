@@ -4,11 +4,22 @@
 # To test this, use `curl -X POST http://localhost:8000/chat/ -H "Content-Type: application/json" -d '{"query": "[your query here]"}'`
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from resume_tailoring_agent import process_query
 from pydantic import BaseModel
 
 # Initialize FastAPI client
 app = FastAPI()
+
+# Allow all origins (for development)
+# For production, replace allow_origins=["*"] with a list of allowed origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (POST, GET, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
 
 conversation = []  # This will store the conversation history
 
