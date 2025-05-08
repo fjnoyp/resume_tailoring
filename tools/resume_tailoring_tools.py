@@ -1,5 +1,5 @@
 from langchain_core.tools.base import BaseTool
-from mcp_servers_tools import invoke_mcp_agent, filesystem_server_params
+from tools.mcp_servers_tools import invoke_mcp_agent, filesystem_server_params
 
 async def resume_screening_tool(resume_path: str, job_description_path: str) -> BaseTool:
     """
@@ -102,10 +102,14 @@ NOTES FILE PATH: {notes_path}
 RESUME FILE PATH: {resume_path}
 FULL RESUME FILE PATH (optional): {full_resume_path}
 """}]
-    agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-    # print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][1:])
-    print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][-1].content)
-    return agent_response["messages"][-1].content
+    try:
+        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
+        # print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][1:])
+        print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][-1].content)
+        return agent_response["messages"][-1].content
+    except Exception as e:
+        print(f"[DEBUG] Error in resume_tailoring_tool.call_tool: {e}")
+        return None
 
 
 
@@ -142,10 +146,13 @@ NOTES FILE PATH: {notes_path}
 RESUME FILE PATH: {resume_path}
 FULL RESUME FILE PATH: {full_resume_path}
 """}]
-    agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-    # print("[DEBUG] Agent response in cover_letter_writing_tool.call_tool:", agent_response["messages"][1:])
-    print("[DEBUG] Agent response in cover_letter_writing_tool.call_tool:", agent_response["messages"][-1].content)
-    return agent_response["messages"][-1].content
+    try:
+        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
+        print("[DEBUG] Agent response in cover_letter_writing_tool.call_tool:", agent_response["messages"][-1].content)
+        return agent_response["messages"][-1].content
+    except Exception as e:
+        print(f"[DEBUG] Error in cover_letter_writing_tool.call_tool: {e}")
+        return None
 
 
 

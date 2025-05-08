@@ -3,11 +3,12 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+from fastapi import FastAPI, HTTPException
 from langchain_anthropic import ChatAnthropic
 import asyncio
 from langgraph.prebuilt import create_react_agent
-from resume_tailoring_tools import resume_tailoring_tools
-from user_experience_gathering_tools import user_experience_gathering_tools
+from tools.resume_tailoring_tools import resume_tailoring_tools
+from tools.user_experience_gathering_tools import user_experience_gathering_tools
 
 # Initialize the model
 model = ChatAnthropic(
@@ -30,31 +31,3 @@ async def process_query(query: list, debug: bool = False):
     return agent_response['messages'][-1].content
 
 MAX_HISTORY = 20  # or whatever fits your model's context window
-
-async def chat_loop():
-    print("Type your queries or 'quit' to exit.")
-    conversation = []  # This will store the conversation history
-
-    while True:
-        try:
-            query = input("\nQuery: ").strip()
-            if query.lower() == 'quit':
-                break
-
-            conversation.append({"role": "user", "content": query})
-            if len(conversation) > MAX_HISTORY:
-                conversation = conversation[-MAX_HISTORY:]
-
-            ai_reply = await process_query(conversation)
-
-            print("\nAI response:\n", ai_reply)
-            conversation.append({"role": "assistant", "content": ai_reply})
-
-        except Exception as e:
-            print(f"\nError: {str(e)}")
-
-async def main():
-    await chat_loop()
-
-if __name__ == "__main__":
-    asyncio.run(main())
