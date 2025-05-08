@@ -1,5 +1,10 @@
 from langchain_core.tools.base import BaseTool
 from tools.mcp_servers_tools import invoke_mcp_agent, filesystem_server_params, linkedin_server_params
+import logging
+import traceback
+import os
+
+logging.basicConfig(level=logging.DEBUG)
 
 async def interactive_experience_gathering_tool(
     full_resume_path: str,
@@ -13,7 +18,8 @@ async def interactive_experience_gathering_tool(
     - full_resume_path: Path to the full resume markdown file to update
     - target_role: Role description to guide experience gathering
     """
-    print(f"[DEBUG] interactive_experience_gathering_tool called with full_resume_path={full_resume_path}, target_role={target_role}")
+    logging.debug(f"[DEBUG] interactive_experience_gathering_tool called with full_resume_path={full_resume_path}, target_role={target_role}")
+    logging.debug(f"[DEBUG] Current working directory: {os.getcwd()}")
 
     messages = [{"role": "user", "content": f"""
 - You are an expert career coach and experience gatherer
@@ -38,11 +44,12 @@ TARGET ROLE: {target_role}
     
     try:
         agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # print("[DEBUG] Agent response in interactive_experience_gathering_tool:", agent_response["messages"][1:])
-        print("[DEBUG] Agent response in interactive_experience_gathering_tool:", agent_response["messages"][-1].content)
+        # logging.debug("[DEBUG] Agent response in interactive_experience_gathering_tool: %s", agent_response["messages"][1:])
+        logging.debug("[DEBUG] Agent response in interactive_experience_gathering_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        print(f"[DEBUG] Error in interactive_experience_gathering_tool: {e}")
+        logging.error(f"[DEBUG] Error in interactive_experience_gathering_tool: {e}")
+        logging.error(traceback.format_exc())
         return None
 
 async def linkedin_profile_parser_tool(
@@ -57,7 +64,7 @@ async def linkedin_profile_parser_tool(
     - linkedin_url: The URL of the LinkedIn profile to parse
     - full_resume_path: Path to the full resume markdown file to update
     """
-    print(f"[DEBUG] linkedin_profile_parser_tool called with linkedin_url={linkedin_url}, full_resume_path={full_resume_path}")
+    logging.debug(f"[DEBUG] linkedin_profile_parser_tool called with linkedin_url={linkedin_url}, full_resume_path={full_resume_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional LinkedIn profile parser
@@ -79,11 +86,12 @@ FULL RESUME PATH: {full_resume_path}
     
     try:
         agent_response = await invoke_mcp_agent(messages, [filesystem_server_params, linkedin_server_params])
-        # print("[DEBUG] Agent response in linkedin_profile_parser_tool:", agent_response["messages"][1:])
-        print("[DEBUG] Agent response in linkedin_profile_parser_tool:", agent_response["messages"][-1].content)
+        # logging.debug("[DEBUG] Agent response in linkedin_profile_parser_tool: %s", agent_response["messages"][1:])
+        logging.debug("[DEBUG] Agent response in linkedin_profile_parser_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        print(f"[DEBUG] Error in linkedin_profile_parser_tool: {e}")
+        logging.error(f"[DEBUG] Error in linkedin_profile_parser_tool: {e}")
+        logging.error(traceback.format_exc())
         return None
 
 async def resume_parser_tool(
@@ -98,7 +106,7 @@ async def resume_parser_tool(
     - file_path: The path to the file to parse (e.g. resume.md, cover_letter.md, etc.)
     - full_resume_path: Path to the full resume markdown file to update
     """
-    print(f"[DEBUG] resume_parser_tool called with file_path={file_path}, full_resume_path={full_resume_path}")
+    logging.debug(f"[DEBUG] resume_parser_tool called with file_path={file_path}, full_resume_path={full_resume_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional resume experience gatherer from an existing file
@@ -121,11 +129,12 @@ FULL RESUME PATH (update this file adding the extracted information): {full_resu
 
     try:
         agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # print("[DEBUG] Agent response in resume_parser_tool:", agent_response["messages"][1:])
-        print("[DEBUG] Agent response in resume_parser_tool:", agent_response["messages"][-1].content)
+        # logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][1:])
+        logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        print(f"[DEBUG] Error in resume_parser_tool: {e}")
+        logging.error(f"[DEBUG] Error in resume_parser_tool: {e}")
+        logging.error(traceback.format_exc())
         return None
 
 # List of all user experience gathering tools

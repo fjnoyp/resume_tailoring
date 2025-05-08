@@ -1,5 +1,9 @@
 from langchain_core.tools.base import BaseTool
 from tools.mcp_servers_tools import invoke_mcp_agent, filesystem_server_params
+import logging
+import traceback
+
+logging.basicConfig(level=logging.DEBUG)
 
 async def resume_screening_tool(resume_path: str, job_description_path: str) -> BaseTool:
     """
@@ -8,7 +12,7 @@ Writes a full analysis of a resume against a job description into a file titled 
 - resume_path: The path to the file containing the resume to screen
 - job_description_path: The path to the file containing the job description to screen the resume against
 """
-    print(f"[DEBUG] resume_screening_tool called with resume_path={resume_path}, job_description_path={job_description_path}")
+    logging.debug(f"[DEBUG] resume_screening_tool called with resume_path={resume_path}, job_description_path={job_description_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional recruiter 
@@ -26,11 +30,12 @@ RESUME FILE PATH: {resume_path}
 """}]
     try:
         agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # print("[DEBUG] Agent response in resume_screening_tool.call_tool:", agent_response["messages"][1:])
-        print("[DEBUG] Agent response in resume_screening_tool.call_tool:", agent_response["messages"][-1].content)
+        # logging.debug("[DEBUG] Agent response in resume_screening_tool.call_tool: %s", agent_response["messages"][1:])
+        logging.debug("[DEBUG] Agent response in resume_screening_tool.call_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        print(f"[DEBUG] Error in resume_screening_tool.call_tool: {e}")
+        logging.error(f"[DEBUG] Error in resume_screening_tool.call_tool: {e}")
+        logging.error(traceback.format_exc())
         return None
 
 
@@ -45,7 +50,7 @@ Takes the feedback from a recruiter on a resume and edits the resume based on th
 - resume_path: The path to the file containing the resume to tailor
 - full_resume_path: The path to the file containing the full resume that includes the non-abridged description of all work experiences (optional)
 """
-    print(f"[DEBUG] resume_tailoring_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, notes_path={notes_path}")
+    logging.debug(f"[DEBUG] resume_tailoring_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, notes_path={notes_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional resume expert.
@@ -104,11 +109,12 @@ FULL RESUME FILE PATH (optional): {full_resume_path}
 """}]
     try:
         agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][1:])
-        print("[DEBUG] Agent response in resume_tailoring_tool.call_tool:", agent_response["messages"][-1].content)
+        # logging.debug("[DEBUG] Agent response in resume_tailoring_tool.call_tool: %s", agent_response["messages"][1:])
+        logging.debug("[DEBUG] Agent response in resume_tailoring_tool.call_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        print(f"[DEBUG] Error in resume_tailoring_tool.call_tool: {e}")
+        logging.error(f"[DEBUG] Error in resume_tailoring_tool.call_tool: {e}")
+        logging.error(traceback.format_exc())
         return None
 
 
@@ -124,7 +130,7 @@ Writes a cover letter for a resume based on feedback from a recruiter and a job 
 - job_description_path: The path to the file containing the job description to write the cover letter for
 - notes_path: The path to the file containing the feedback from the recruiter
 """
-    print(f"[DEBUG] cover_letter_writing_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, job_description_path={job_description_path}, notes_path={notes_path}")
+    logging.debug(f"[DEBUG] cover_letter_writing_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, job_description_path={job_description_path}, notes_path={notes_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional cover letter writer
@@ -148,10 +154,11 @@ FULL RESUME FILE PATH: {full_resume_path}
 """}]
     try:
         agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        print("[DEBUG] Agent response in cover_letter_writing_tool.call_tool:", agent_response["messages"][-1].content)
+        logging.debug("[DEBUG] Agent response in cover_letter_writing_tool.call_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        print(f"[DEBUG] Error in cover_letter_writing_tool.call_tool: {e}")
+        logging.error(f"[DEBUG] Error in cover_letter_writing_tool.call_tool: {e}")
+        logging.error(traceback.format_exc())
         return None
 
 
