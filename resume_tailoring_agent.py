@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+import logging
 from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 from tools.resume_tailoring_tools import resume_tailoring_tools

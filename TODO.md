@@ -10,6 +10,16 @@
 
 [ x ] Wrap with FastAPI (can be local hosted for now)
 
-[  ] Basic UI with file upload and results visualization
+[ x ] Basic UI with chat and file upload
+
+[ x ] Migrate from filesystem tools to supabase tools
+
+[  ] Update UI to easily set user resume and job description (optionally we could add other experiences/skills sources)
+
+[  ] Add results visualization and download option to UI
+
+[  ] Apply Supabase bucket structure
+
+[  ] Add tool calls and results tracking (simple) in UI
 
 [  ] Ensure stream support

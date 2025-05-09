@@ -1,3 +1,4 @@
+import logging
 from mcp.client.stdio import stdio_client
 from mcp import ClientSession, StdioServerParameters
 from langchain_mcp_adapters.tools import load_mcp_tools
@@ -7,6 +8,8 @@ from langchain_anthropic import ChatAnthropic
 from contextlib import AsyncExitStack
 import os
 
+from tools import supabase_storage_tools
+
 # Server parameters for server-filesystem
 filesystem_server_params = StdioServerParameters(
     command="npx",
@@ -15,6 +18,21 @@ filesystem_server_params = StdioServerParameters(
           "@modelcontextprotocol/server-filesystem",
           f"{os.getcwd()}"
         ],
+)
+
+# Server parameters for Supabase MCP server
+supabase_access_token = os.getenv("SUPABASE_ACCESS_TOKEN")
+if not supabase_access_token:
+    raise RuntimeError("SUPABASE_ACCESS_TOKEN environment variable is not set. Please set it before running.")
+
+supabase_server_params = StdioServerParameters(
+    command="npx",
+    args=[
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--access-token",
+        supabase_access_token
+    ],
 )
 
 # Using fetch mcp server to fetch LinkedIn data does not work because we need authentication
@@ -29,12 +47,13 @@ linkedin_server_params = StdioServerParameters(
     }
 )
 
-async def invoke_mcp_agent(messages: list[dict[str, str]], server_params_list: list):
+async def invoke_mcp_agent(messages: list[dict[str, str]], server_params_list: list, additional_tools: list = []):
     """
     Invokes an agent with tools loaded from multiple MCP servers.
     Keeps all sessions open for the duration of the agent call.
     """
     all_tools = []
+    all_tools.extend(additional_tools)
     model = ChatAnthropic(
         model_name="claude-3-5-sonnet-latest",
         timeout=120,
@@ -48,6 +67,7 @@ async def invoke_mcp_agent(messages: list[dict[str, str]], server_params_list: l
             session = await stack.enter_async_context(ClientSession(*client))
             await asyncio.wait_for(session.initialize(), timeout=30)
             tools = await asyncio.wait_for(load_mcp_tools(session), timeout=30)
+            logging.debug(f"Loaded tools: {tools}")
             all_tools.extend(tools)
             sessions.append(session)  # Keep reference if needed
 

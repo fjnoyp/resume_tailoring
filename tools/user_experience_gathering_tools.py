@@ -1,25 +1,35 @@
 from langchain_core.tools.base import BaseTool
-from tools.mcp_servers_tools import invoke_mcp_agent, filesystem_server_params, linkedin_server_params
+from langchain_anthropic import ChatAnthropic
+from langgraph.prebuilt import create_react_agent
+from tools.supabase_storage_tools import supabase_storage_tools
+from tools.mcp_servers_tools import invoke_mcp_agent, linkedin_server_params
+import logging
+import traceback
+
+logging.basicConfig(level=logging.DEBUG)
+
+# Initialize the model
+model = ChatAnthropic(
+    model_name="claude-3-5-sonnet-latest",
+    timeout=120,
+    stop=None
+)
+
 import logging
 import traceback
 import os
 
 logging.basicConfig(level=logging.DEBUG)
 
-async def interactive_experience_gathering_tool(
-    full_resume_path: str,
-    target_role: str
-) -> BaseTool:
+async def interactive_experience_gathering_tool(full_resume_path: str, target_role: str) -> BaseTool:
     """
-    Interactively gathers user experiences through text input and updates the full resume markdown file.
+Gathers user experiences and updates the full resume markdown file in Supabase Storage.
+Returns questions (one or more) to be asked to the user to gather further experiences.
 
-    Use this tool to gather user experiences from the user whenever you see missing experiences or skills that are relevant to the target role.
-    
-    - full_resume_path: Path to the full resume markdown file to update
-    - target_role: Role description to guide experience gathering
-    """
+- full_resume_path: Supabase Storage path to the full resume markdown file
+- target_role: Role description to guide experience gathering
+"""
     logging.debug(f"[DEBUG] interactive_experience_gathering_tool called with full_resume_path={full_resume_path}, target_role={target_role}")
-    logging.debug(f"[DEBUG] Current working directory: {os.getcwd()}")
 
     messages = [{"role": "user", "content": f"""
 - You are an expert career coach and experience gatherer
@@ -33,37 +43,62 @@ async def interactive_experience_gathering_tool(
   * Quantifiable achievements and metrics
   * Project challenges and how they were overcome
   * Industry-specific experiences relevant to the target role
-- Update the full resume markdown file with the gathered information
-- If the file doesn't exist, create it with proper markdown formatting
-- Use the edit_file tool to update the full resume file
+- Return a list of one or more specific, targeted questions to ask the user in order to gather further experiences or details for their resume.
+- Do NOT update or write to the full resume file in this step.
+- Do NOT output anything except the questions to ask the user.
 
-- You've been given tools to read and write files - use them to manage the resume data
 FULL RESUME PATH: {full_resume_path}
 TARGET ROLE: {target_role}
 """}]
-    
     try:
-        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # logging.debug("[DEBUG] Agent response in interactive_experience_gathering_tool: %s", agent_response["messages"][1:])
-        logging.debug("[DEBUG] Agent response in interactive_experience_gathering_tool: %s", agent_response["messages"][-1].content)
+        agent = create_react_agent(model, supabase_storage_tools)
+        agent_response = await agent.ainvoke({"messages": messages})
+        logging.debug("[DEBUG] Agent response in interactive_experience_gathering_tool: %s", agent_response["messages"][-1:])
+        # logging.debug("[DEBUG] Agent response in interactive_experience_gathering_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
         logging.error(f"[DEBUG] Error in interactive_experience_gathering_tool: {e}")
         logging.error(traceback.format_exc())
         return None
-
-async def linkedin_profile_parser_tool(
-    linkedin_url: str,
-    full_resume_path: str
-) -> BaseTool:
-    """
-    Parses a LinkedIn profile URL and updates the full resume markdown file with the extracted information.
-
-    This tool can be useful to gather experiences from a LinkedIn profile whenever you see missing experiences or skills that are relevant to the target role.
     
-    - linkedin_url: The URL of the LinkedIn profile to parse
-    - full_resume_path: Path to the full resume markdown file to update
+async def full_resume_update_tool(full_resume_path: str, info_to_add: str) -> BaseTool:
     """
+Updates the full resume markdown file in Supabase Storage by adding new information.
+
+- full_resume_path: Supabase Storage path to the full resume markdown file
+- info_to_add: Information to add to the full resume markdown file
+"""
+    logging.debug(f"[DEBUG] full_resume_update_tool called with full_resume_path={full_resume_path}, info_to_add={info_to_add}")
+
+    messages = [{"role": "user", "content": f"""
+- Add the provided information to the full resume at FULL RESUME FILE PATH.
+- Do not remove or replace existing content; only add new information that is not already present.
+- Avoid duplicating information that is already in the file.
+- Save the updated resume to FULL RESUME FILE PATH.
+- Respond with a concise answer explaining what was added and that you have updated the FULL RESUME FILE PATH.
+- If some of your tool calls fail, respond with a concise answer explaining what happened.
+
+FULL RESUME FILE PATH: {full_resume_path}
+INFORMATION TO ADD: {info_to_add}
+"""}]
+    try:
+        agent = create_react_agent(model, supabase_storage_tools)
+        agent_response = await agent.ainvoke({"messages": messages})
+        logging.debug("[DEBUG] Agent response in full_resume_update_tool: %s", agent_response["messages"][-1:])
+        # logging.debug("[DEBUG] Agent response in full_resume_update_tool: %s", agent_response["messages"][-1].content)
+        return agent_response["messages"][-1].content
+    except Exception as e:
+        logging.error(f"[DEBUG] Error in full_resume_update_tool: {e}")
+        logging.error(traceback.format_exc())
+        return None
+
+async def linkedin_profile_parser_tool(linkedin_url: str, full_resume_path: str) -> BaseTool:
+    """
+Parses a LinkedIn profile and updates the full resume markdown file in Supabase Storage by adding new information.
+
+- linkedin_url: LinkedIn profile URL
+- full_resume_path: Supabase Storage path to the full resume markdown file
+"""
     logging.debug(f"[DEBUG] linkedin_profile_parser_tool called with linkedin_url={linkedin_url}, full_resume_path={full_resume_path}")
 
     messages = [{"role": "user", "content": f"""
@@ -75,37 +110,33 @@ async def linkedin_profile_parser_tool(
   * Skills and certifications
   * Projects and achievements
   * Recommendations and endorsements
-- Update the full resume markdown file with the extracted information
-- If the file doesn't exist, create it with proper markdown formatting
-- Use the edit_file tool to update the full resume file
+- Add the extracted information to the full resume at FULL RESUME FILE PATH.
+- Do not remove or replace existing content; only add new information that is not already present.
+- Avoid duplicating information that is already in the file.
+- If the file doesn't exist, create it with proper markdown formatting.
+- Respond with a concise answer explaining what was added and that you have updated the FULL RESUME FILE PATH.
+- If some of your tool calls fail, respond with a concise answer explaining what happened.
 
-- You've been given tools to read and write files - use them to manage the resume data
 LINKEDIN URL: {linkedin_url}
-FULL RESUME PATH: {full_resume_path}
+FULL RESUME FILE PATH: {full_resume_path}
 """}]
-    
     try:
-        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params, linkedin_server_params])
-        # logging.debug("[DEBUG] Agent response in linkedin_profile_parser_tool: %s", agent_response["messages"][1:])
-        logging.debug("[DEBUG] Agent response in linkedin_profile_parser_tool: %s", agent_response["messages"][-1].content)
+        agent_response = await invoke_mcp_agent(messages, [linkedin_server_params], additional_tools=supabase_storage_tools)
+        logging.debug("[DEBUG] Agent response in linkedin_profile_parser_tool: %s", agent_response["messages"][-1:])
+        # logging.debug("[DEBUG] Agent response in linkedin_profile_parser_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
         logging.error(f"[DEBUG] Error in linkedin_profile_parser_tool: {e}")
         logging.error(traceback.format_exc())
         return None
 
-async def resume_parser_tool(
-    file_path: str,
-    full_resume_path: str
-) -> BaseTool:
+async def resume_parser_tool(file_path: str, full_resume_path: str) -> BaseTool:
     """
-    Parses an existing file and updates the full resume markdown file with the extracted information.
-    
-    This tool can be useful to gather experiences from an existing file whenever you see missing experiences or skills that are relevant to the target role.
+Parses an existing resume (or experience/skills related) file and updates the full resume markdown file in Supabase Storage by adding new information.
 
-    - file_path: The path to the file to parse (e.g. resume.md, cover_letter.md, etc.)
-    - full_resume_path: Path to the full resume markdown file to update
-    """
+- file_path: Supabase Storage path to the file to parse
+- full_resume_path: Supabase Storage path to the full resume markdown file
+"""
     logging.debug(f"[DEBUG] resume_parser_tool called with file_path={file_path}, full_resume_path={full_resume_path}")
 
     messages = [{"role": "user", "content": f"""
@@ -117,20 +148,22 @@ async def resume_parser_tool(
   * Skills and certifications
   * Projects and achievements
   * Contact information and personal details
-- Update the full resume markdown file with the extracted information
-- If the file doesn't exist, create it with proper markdown formatting
-- Use the edit_file tool to update the full resume file
-- Avoid duplicating information from the existing full resume file
+- Add the extracted information to the full resume at FULL RESUME FILE PATH.
+- Do not remove or replace existing content; only add new information that is not already present.
+- Avoid duplicating information that is already in the file.
+- If the file doesn't exist, create it with proper markdown formatting.
+- Use the edit_file tool to update the full resume file.
+- Respond with a concise answer explaining what was added and that you have updated the FULL RESUME FILE PATH.
+- If some of your tool calls fail, respond with a concise answer explaining what happened.
 
-- You've been given tools to read and write files - use them to manage the resume data
 EXISTING FILE PATH (extract from this file): {file_path}
-FULL RESUME PATH (update this file adding the extracted information): {full_resume_path}
+FULL RESUME FILE PATH: {full_resume_path}
 """}]
-
     try:
-        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][1:])
-        logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][-1].content)
+        agent = create_react_agent(model, supabase_storage_tools)
+        agent_response = await agent.ainvoke({"messages": messages})
+        logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][-1:])
+        # logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
         logging.error(f"[DEBUG] Error in resume_parser_tool: {e}")
@@ -140,6 +173,7 @@ FULL RESUME PATH (update this file adding the extracted information): {full_resu
 # List of all user experience gathering tools
 user_experience_gathering_tools = [
     interactive_experience_gathering_tool,
+    full_resume_update_tool,
     linkedin_profile_parser_tool,
     resume_parser_tool
 ]

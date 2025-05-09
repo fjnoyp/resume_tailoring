@@ -1,5 +1,18 @@
 from langchain_core.tools.base import BaseTool
-from tools.mcp_servers_tools import invoke_mcp_agent, filesystem_server_params
+from langchain_anthropic import ChatAnthropic
+from langgraph.prebuilt import create_react_agent
+from tools.supabase_storage_tools import supabase_storage_tools
+import logging
+import traceback
+
+logging.basicConfig(level=logging.DEBUG)
+
+# Initialize the model
+model = ChatAnthropic(
+    model_name="claude-3-5-sonnet-latest",
+    timeout=120,
+    stop=None
+)
 import logging
 import traceback
 
@@ -7,34 +20,42 @@ logging.basicConfig(level=logging.DEBUG)
 
 async def resume_screening_tool(resume_path: str, job_description_path: str) -> BaseTool:
     """
-Writes a full analysis of a resume against a job description into a file titled NOTES.md in the same folder of the resume given to you.
+Analyzes a resume against a job description and writes a full analysis in a NOTES.md markdown file at the same file path folder as the provided JOB DESCRIPTION FILE PATH on Supabase Storage.
 
-- resume_path: The path to the file containing the resume to screen
-- job_description_path: The path to the file containing the job description to screen the resume against
+- resume_path: The Supabase Storage file path (e.g., https://...supabase.co/storage/v1/object/public/...) of the resume to screen.
+- job_description_path: The Supabase Storage file path of the job description to screen the resume against.
 """
     logging.debug(f"[DEBUG] resume_screening_tool called with resume_path={resume_path}, job_description_path={job_description_path}")
 
     messages = [{"role": "user", "content": f"""
-- You are a professional recruiter 
+- You are a professional recruiter
 - You have been given a job spec for a company/role you are recruiting for 
-- Take the given resume and assess if it's a good fit for the role, provide pros and cons and reasoning on whether to accept or reject this candidate. 
+- Assess the resume at RESUME FILE PATH against the job description at JOB DESCRIPTION FILE PATH.
+- If it's a good fit for the role, provide pros and cons and reasoning on whether to accept or reject this candidate. 
 - Write your thoughts in a well reasoned full analysis of the resume and if it's appropriate for the role you are hiring for 
 - Consider that you have 100s of candidates for the same role and you need to be careful on who you accept or not. We cannot accept everyone so it's better to reject candidates and give a rejection answer more aggressively, but important to give full well written reasons on why you want to reject. 
-- We will continue rewriting the resume based on your feedback, so always review the latest resume given to you to provide fresh up to date comments 
+- Provide a markdown-formatted analysis with pros, cons, and a clear accept/reject recommendation.
+- Only output markdown.
 
-- Use the write_file tool to save your answer to NOTES.md. Do not just say you wrote the file — actually call the tool.
+IMPORTANT:
+- Write your full markdown formatted analysis in a NOTES.md file at the same file path folder as the provided JOB DESCRIPTION FILE PATH on Supabase Storage. If the file does not exist, create it with proper markdown formatting. Overwrite if it exists.
+- Use the appropriate tool to write the analysis to the NOTES.md file.
+- Respond with a concise answer explaining your reasoning and the recommendation and that you have written your full analysis in the NOTES FILE PATH.
+- If some of your tool calls fail, respond with a concise answer explaining what happened.
 
-- You've been given tools to read the job description and resume - use them to read the files and provide your response in the NOTES.md file
-JOB DESCRIPTION FILE PATH: {job_description_path}
+- The file paths provided are Supabase Storage URLs. You can use these directly with your available tools to read the files.
 RESUME FILE PATH: {resume_path}
+JOB DESCRIPTION FILE PATH: {job_description_path}
+NOTES FILE PATH: (same folder as JOB DESCRIPTION FILE PATH, named NOTES.md)
 """}]
     try:
-        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # logging.debug("[DEBUG] Agent response in resume_screening_tool.call_tool: %s", agent_response["messages"][1:])
-        logging.debug("[DEBUG] Agent response in resume_screening_tool.call_tool: %s", agent_response["messages"][-1].content)
+        agent = create_react_agent(model, supabase_storage_tools)
+        agent_response = await agent.ainvoke({"messages": messages})
+        logging.debug("[DEBUG] Agent response in resume_screening_tool: %s", agent_response["messages"][1:])
+        # logging.debug("[DEBUG] Agent response in resume_screening_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        logging.error(f"[DEBUG] Error in resume_screening_tool.call_tool: {e}")
+        logging.error(f"[DEBUG] Error in resume_screening_tool: {e}")
         logging.error(traceback.format_exc())
         return None
 
@@ -42,13 +63,13 @@ RESUME FILE PATH: {resume_path}
 
 
 
-async def resume_tailoring_tool(resume_path: str, full_resume_path: str | None = None, notes_path: str | None = None) -> BaseTool:
+async def resume_tailoring_tool(resume_path: str, full_resume_path: str, notes_path: str) -> BaseTool:
     """
-Takes the feedback from a recruiter on a resume and edits the resume based on the feedback.
+Tailors a resume based on recruiter feedback and the user's full resume and writes the tailored resume to a new TAILED RESUME.md markdown file at the same file path folder as the provided NOTES FILE PATH on Supabase Storage.
 
-- notes_path: The path to the file containing the feedback from the recruiter
-- resume_path: The path to the file containing the resume to tailor
-- full_resume_path: The path to the file containing the full resume that includes the non-abridged description of all work experiences (optional)
+- resume_path: Supabase Storage path to the resume to tailor (markdown)
+- full_resume_path: Supabase Storage path to the user's full resume (markdown)
+- notes_path: Supabase Storage path to recruiter feedback (markdown)
 """
     logging.debug(f"[DEBUG] resume_tailoring_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, notes_path={notes_path}")
 
@@ -95,25 +116,27 @@ Takes the feedback from a recruiter on a resume and edits the resume based on th
 
 - Give reasons in your response explaining how you effectively addressed the recruiter's concerns.
 
-- Always edit the resume file provided to you - do not create a new one.
-
+- Always edit the resume file provided to you - do not create a new one. Use the appropriate tool to update the resume file at RESUME FILE PATH. If the file does not exist, create it with proper markdown formatting. Overwrite if it exists.
 - Please do not make up experiences, or mischaracterize an experience (e.g., saying the user did backend integration on the Jetbrains AI chat plugin when they didn't, just because the role requires backend experience). Instead, if you identify such gaps or potential misinterpretations based on the available information, mention this clearly in your response.
 
 - Use the edit_file tool to save your revised resume to the resume file provided to you. Do not just say you wrote the file — actually call the tool.
 - If you are not given a full resume file, you can use available tools to infer the full resume file in the same folder as the resume file provided to you.
 
 - You've been given tools to read the resume files - use them to read the files and edit the RESUME file provided to you.
+- Respond with a concise answer explaining what was changed and that you have updated the RESUME FILE PATH.
+- If some of your tool calls fail, respond with a concise answer explaining what happened.
 NOTES FILE PATH: {notes_path}
 RESUME FILE PATH: {resume_path}
-FULL RESUME FILE PATH (optional): {full_resume_path}
+FULL RESUME FILE PATH: {full_resume_path}
 """}]
     try:
-        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        # logging.debug("[DEBUG] Agent response in resume_tailoring_tool.call_tool: %s", agent_response["messages"][1:])
-        logging.debug("[DEBUG] Agent response in resume_tailoring_tool.call_tool: %s", agent_response["messages"][-1].content)
+        agent = create_react_agent(model, supabase_storage_tools)
+        agent_response = await agent.ainvoke({"messages": messages})
+        logging.debug("[DEBUG] Agent response in resume_tailoring_tool: %s", agent_response["messages"][1:])
+        # logging.debug("[DEBUG] Agent response in resume_tailoring_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        logging.error(f"[DEBUG] Error in resume_tailoring_tool.call_tool: {e}")
+        logging.error(f"[DEBUG] Error in resume_tailoring_tool: {e}")
         logging.error(traceback.format_exc())
         return None
 
@@ -123,13 +146,13 @@ FULL RESUME FILE PATH (optional): {full_resume_path}
 
 async def cover_letter_writing_tool(resume_path: str, full_resume_path: str, job_description_path: str, notes_path: str) -> BaseTool:
     """
-Writes a cover letter for a resume based on feedback from a recruiter and a job description.
+Writes a cover letter for a resume based on feedback from a recruiter and a job description into a COVER LETTER.md markdown file at the same file path folder as the provided NOTES FILE PATH on Supabase Storage.
 
-- resume_path: The path to the file containing the resume to write the cover letter for
-- full_resume_path: The path to the file containing the full resume that includes the non-abridged description of all work experiences
-- job_description_path: The path to the file containing the job description to write the cover letter for
-- notes_path: The path to the file containing the feedback from the recruiter
-"""
+- resume_path: Supabase Storage path to the tailored resume (markdown)
+- full_resume_path: Supabase Storage path to the user's full resume (markdown)
+- job_description_path: Supabase Storage path to the job description (markdown)
+- notes_path: Supabase Storage path to recruiter feedback (markdown)
+    """
     logging.debug(f"[DEBUG] cover_letter_writing_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, job_description_path={job_description_path}, notes_path={notes_path}")
 
     messages = [{"role": "user", "content": f"""
@@ -144,20 +167,25 @@ Writes a cover letter for a resume based on feedback from a recruiter and a job 
 - Write for brevity (200-500 words max), show do not tell. Consider what makes an ideal cover letter and apply those principles to what you write. 
 - If possible make it unique in an appropriate way / creatively different that could help attract more attention
 
-- Use the write_file tool to save your answer to cover-letter.md. Do not just say you wrote the file — actually call the tool.
+- Use the write_file tool to save your answer to cover-letter.md. Do not just say you wrote the file — actually call the tool. Use the appropriate tool to write the cover letter to COVER LETTER FILE PATH. If the file does not exist, create it with proper markdown formatting. Overwrite if it exists.
 
-- You've been given tools to read the relevant files - use them to read the files and provide your response in the cover-letter.md file
-JOB DESCRIPTION FILE PATH: {job_description_path}
-NOTES FILE PATH: {notes_path}
+- You've been given tools to read the relevant files - use them to read the files and provide your answer in the cover-letter.md file.
+- Respond with a concise answer explaining the cover letter's focus and that you have written your full cover letter in the COVER LETTER FILE PATH.
+- If some of your tool calls fail, respond with a concise answer explaining what happened.
 RESUME FILE PATH: {resume_path}
 FULL RESUME FILE PATH: {full_resume_path}
+JOB DESCRIPTION FILE PATH: {job_description_path}
+NOTES FILE PATH: {notes_path}
+COVER LETTER FILE PATH: (same folder as NOTES FILE PATH, named cover_letter.md)
 """}]
     try:
-        agent_response = await invoke_mcp_agent(messages, [filesystem_server_params])
-        logging.debug("[DEBUG] Agent response in cover_letter_writing_tool.call_tool: %s", agent_response["messages"][-1].content)
+        agent = create_react_agent(model, supabase_storage_tools)
+        agent_response = await agent.ainvoke({"messages": messages})
+        logging.debug("[DEBUG] Agent response in cover_letter_writing_tool: %s", agent_response["messages"][1:])
+        # logging.debug("[DEBUG] Agent response in cover_letter_writing_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
-        logging.error(f"[DEBUG] Error in cover_letter_writing_tool.call_tool: {e}")
+        logging.error(f"[DEBUG] Error in cover_letter_writing_tool: {e}")
         logging.error(traceback.format_exc())
         return None
 
