@@ -14,12 +14,18 @@
 
 [ x ] Migrate from filesystem tools to supabase tools
 
-[  ] Update UI to easily set user resume and job description (optionally we could add other experiences/skills sources)
+[ x ] Update UI to easily set user resume and job description (optionally we could add other experiences/skills sources)
 
-[  ] Add results visualization and download option to UI
+[ x ] Add results visualization to UI
 
-[  ] Apply Supabase bucket structure
+[ x ] Apply Supabase bucket structure
+
+[  ] Add simple download option to UI
 
 [  ] Add tool calls and results tracking (simple) in UI
 
+[  ] Add authentication and job id logic to properly use the storage structure
+
 [  ] Ensure stream support
+
+[  ] Download as pdf instead of md

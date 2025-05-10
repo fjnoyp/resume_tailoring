@@ -20,11 +20,15 @@ logging.basicConfig(level=logging.DEBUG)
 
 async def resume_screening_tool(resume_path: str, job_description_path: str) -> BaseTool:
     """
-Analyzes a resume against a job description and writes a full analysis in a NOTES.md markdown file at the same file path folder as the provided JOB DESCRIPTION FILE PATH on Supabase Storage.
+    Analyzes a resume against a job description and writes a full analysis in a NOTES.md markdown file at the same file path folder as the provided JOB DESCRIPTION FILE PATH on Supabase Storage.
 
-- resume_path: The Supabase Storage file path (e.g., https://...supabase.co/storage/v1/object/public/...) of the resume to screen.
-- job_description_path: The Supabase Storage file path of the job description to screen the resume against.
-"""
+    Parameters:
+    - resume_path (str, required): The Supabase Storage file path (e.g., https://...supabase.co/storage/v1/object/public/...) of the resume to screen.
+    - job_description_path (str, required): The Supabase Storage file path of the job description to screen the resume against.
+
+    Returns:
+    - str: A concise message explaining the reasoning and recommendation, and that the full analysis was written in the NOTES FILE PATH. If tool calls fail, a concise message explaining what happened.
+    """
     logging.debug(f"[DEBUG] resume_screening_tool called with resume_path={resume_path}, job_description_path={job_description_path}")
 
     messages = [{"role": "user", "content": f"""
@@ -51,7 +55,7 @@ NOTES FILE PATH: (same folder as JOB DESCRIPTION FILE PATH, named NOTES.md)
     try:
         agent = create_react_agent(model, supabase_storage_tools)
         agent_response = await agent.ainvoke({"messages": messages})
-        logging.debug("[DEBUG] Agent response in resume_screening_tool: %s", agent_response["messages"][1:])
+        # logging.debug("[DEBUG] Agent response in resume_screening_tool: %s", agent_response["messages"][1:])
         # logging.debug("[DEBUG] Agent response in resume_screening_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
@@ -65,12 +69,16 @@ NOTES FILE PATH: (same folder as JOB DESCRIPTION FILE PATH, named NOTES.md)
 
 async def resume_tailoring_tool(resume_path: str, full_resume_path: str, notes_path: str) -> BaseTool:
     """
-Tailors a resume based on recruiter feedback and the user's full resume and writes the tailored resume to a new TAILED RESUME.md markdown file at the same file path folder as the provided NOTES FILE PATH on Supabase Storage.
+    Tailors a resume based on recruiter feedback and the user's full resume and writes the tailored resume to a new TAILORED RESUME.md markdown file at the same file path folder as the provided NOTES FILE PATH on Supabase Storage.
 
-- resume_path: Supabase Storage path to the resume to tailor (markdown)
-- full_resume_path: Supabase Storage path to the user's full resume (markdown)
-- notes_path: Supabase Storage path to recruiter feedback (markdown)
-"""
+    Parameters:
+    - resume_path (str, required): Supabase Storage path to the resume to tailor (markdown)
+    - full_resume_path (str, required): Supabase Storage path to the user's full resume (markdown)
+    - notes_path (str, required): Supabase Storage path to recruiter feedback (markdown)
+
+    Returns:
+    - str: A concise message explaining what was changed and that the RESUME FILE PATH was updated. If tool calls fail, a concise message explaining what happened.
+    """
     logging.debug(f"[DEBUG] resume_tailoring_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, notes_path={notes_path}")
 
     messages = [{"role": "user", "content": f"""
@@ -132,7 +140,7 @@ FULL RESUME FILE PATH: {full_resume_path}
     try:
         agent = create_react_agent(model, supabase_storage_tools)
         agent_response = await agent.ainvoke({"messages": messages})
-        logging.debug("[DEBUG] Agent response in resume_tailoring_tool: %s", agent_response["messages"][1:])
+        # logging.debug("[DEBUG] Agent response in resume_tailoring_tool: %s", agent_response["messages"][1:])
         # logging.debug("[DEBUG] Agent response in resume_tailoring_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
@@ -146,19 +154,23 @@ FULL RESUME FILE PATH: {full_resume_path}
 
 async def cover_letter_writing_tool(resume_path: str, full_resume_path: str, job_description_path: str, notes_path: str) -> BaseTool:
     """
-Writes a cover letter for a resume based on feedback from a recruiter and a job description into a COVER LETTER.md markdown file at the same file path folder as the provided NOTES FILE PATH on Supabase Storage.
+    Writes a cover letter for a resume based on feedback from a recruiter and a job description into a COVER LETTER.md markdown file at the same file path folder as the provided NOTES FILE PATH on Supabase Storage.
 
-- resume_path: Supabase Storage path to the tailored resume (markdown)
-- full_resume_path: Supabase Storage path to the user's full resume (markdown)
-- job_description_path: Supabase Storage path to the job description (markdown)
-- notes_path: Supabase Storage path to recruiter feedback (markdown)
+    Parameters:
+    - resume_path (str, required): Supabase Storage path to the tailored resume (markdown)
+    - full_resume_path (str, required): Supabase Storage path to the user's full resume (markdown)
+    - job_description_path (str, required): Supabase Storage path to the job description (markdown)
+    - notes_path (str, required): Supabase Storage path to recruiter feedback (markdown)
+
+    Returns:
+    - str: A concise message explaining the cover letter's focus and that the full cover letter was written in the COVER LETTER FILE PATH. If tool calls fail, a concise message explaining what happened.
     """
     logging.debug(f"[DEBUG] cover_letter_writing_tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, job_description_path={job_description_path}, notes_path={notes_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional cover letter writer
 - The job spec, a NOTES.md feedback from an ai hiring for that job, will be provided to you. 
-- Write a cover-letter.md in the same folder as the RESUME file provided to you that helps my overall application for the job spec. 
+- Write a COVER_LETTER.md in the same folder as the RESUME file provided to you that helps my overall application for the job spec. 
 - Consider the weaknesses highlighted in the NOTES file and how the cover letter can help support or explain any weaknesses indirectly to increase chance recruiter accepts my application
 - Consider the ideal strengths/general experience I have that might not be fully explained in the resume or could be explained more that would help my overall chance for recruiter to accept my application 
 - You may or may not want to add some extra details about me included in the FULL RESUME file that would help my application but are not present in my RESUME file
@@ -167,7 +179,8 @@ Writes a cover letter for a resume based on feedback from a recruiter and a job 
 - Write for brevity (200-500 words max), show do not tell. Consider what makes an ideal cover letter and apply those principles to what you write. 
 - If possible make it unique in an appropriate way / creatively different that could help attract more attention
 
-- Use the write_file tool to save your answer to cover-letter.md. Do not just say you wrote the file — actually call the tool. Use the appropriate tool to write the cover letter to COVER LETTER FILE PATH. If the file does not exist, create it with proper markdown formatting. Overwrite if it exists.
+- Use the appropriate tool to write the cover letter to COVER LETTER FILE PATH. If the file does not exist, create it with proper markdown formatting. Overwrite if it exists.
+- Do not just say you wrote the file — actually call the tool.
 
 - You've been given tools to read the relevant files - use them to read the files and provide your answer in the cover-letter.md file.
 - Respond with a concise answer explaining the cover letter's focus and that you have written your full cover letter in the COVER LETTER FILE PATH.
@@ -176,12 +189,12 @@ RESUME FILE PATH: {resume_path}
 FULL RESUME FILE PATH: {full_resume_path}
 JOB DESCRIPTION FILE PATH: {job_description_path}
 NOTES FILE PATH: {notes_path}
-COVER LETTER FILE PATH: (same folder as NOTES FILE PATH, named cover_letter.md)
+COVER LETTER FILE PATH: (same folder as NOTES FILE PATH, named COVER_LETTER.md)
 """}]
     try:
         agent = create_react_agent(model, supabase_storage_tools)
         agent_response = await agent.ainvoke({"messages": messages})
-        logging.debug("[DEBUG] Agent response in cover_letter_writing_tool: %s", agent_response["messages"][1:])
+        # logging.debug("[DEBUG] Agent response in cover_letter_writing_tool: %s", agent_response["messages"][1:])
         # logging.debug("[DEBUG] Agent response in cover_letter_writing_tool: %s", agent_response["messages"][-1].content)
         return agent_response["messages"][-1].content
     except Exception as e:
