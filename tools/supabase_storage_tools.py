@@ -4,6 +4,31 @@ from supabase import create_client, Client
 
 supabase_client: Client = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY"))
 
+async def get_user_files_paths(user_id: str, job_id: str | None = None) -> dict[str, str]:
+    """
+    Retrieves all file paths of resumes for a given user and job from Supabase storage. The files not necessarily exist in the bucket.
+
+    Args:
+        user_id: The ID of the user
+        job_id (optional): The ID of the job - if not provided, the job_id will be represented as "[job_id]"
+
+    Returns:
+        A dictionary of file paths containing "job_description_path", "tailored_resume_path", "original_resume_path", "recruiter_notes_path", "cover_letter_path"
+    """
+    if job_id is None:
+        job_id = "[job_id]"
+
+    response = {
+        "user_full_resume_path": f"{user_id}/FULL_RESUME.md",
+        "job_description_path": f"{user_id}/{job_id}/JOB_DESCRIPTION.md",
+        "tailored_resume_path": f"{user_id}/{job_id}/TAILORED_RESUME.md",
+        "original_resume_path": f"{user_id}/{job_id}/ORIGINAL_RESUME.md",
+        "recruiter_notes_path": f"{user_id}/{job_id}/NOTES.md",
+        "cover_letter_path": f"{user_id}/{job_id}/COVER_LETTER.md"
+    }
+
+    return response
+
 async def read_file_from_bucket(bucket_name: str, file_path: str) -> Optional[bytes]:
     """
     Retrieves a file from a Supabase storage bucket.
@@ -42,7 +67,7 @@ async def list_files_in_bucket(bucket_name: str, path: str = "") -> Optional[lis
 
 async def upload_file_to_bucket(bucket_name: str, file_path: str, file_content: bytes) -> Optional[dict]:
     """
-    Uploads a file to a Supabase storage bucket.
+    Uploads a file to a Supabase storage bucket, creating or overwriting as needed.
 
     Args:
         bucket_name: The name of the bucket
@@ -53,7 +78,11 @@ async def upload_file_to_bucket(bucket_name: str, file_path: str, file_content: 
         The upload response dict if successful, None otherwise
     """
     try:
-        response = supabase_client.storage.from_(bucket_name).upload(file_path, file_content)
+        response = supabase_client.storage.from_(bucket_name).upload(
+            file_path,
+            file_content,
+            {"upsert": True}
+        )
         return response
     except Exception as e:
         print(f"Error uploading file to bucket: {e}")
