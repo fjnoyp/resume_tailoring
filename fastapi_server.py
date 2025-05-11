@@ -3,10 +3,14 @@
 # You can see the docs at `http://localhost:8000/docs`
 # To test this, use `curl -X POST http://localhost:8000/chat/ -H "Content-Type: application/json" -d '{"query": "[your query here]"}'`
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from resume_tailoring_agent import process_query
+from resume_tailoring_agent import process_query, MAX_HISTORY
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
+import asyncio
+import json
+from resume_tailoring_agent import process_query_stream, to_serializable
 
 # Initialize FastAPI client
 app = FastAPI()
@@ -22,12 +26,41 @@ app.add_middleware(
 )
 
 conversation = []  # This will store the conversation history
+running_tasks = {}
 
 class ChatRequest(BaseModel):
     query: str
 
 class ChatResponse(BaseModel):
     ai_response: str
+
+def conversation_to_dicts(conversation):
+    result = []
+    for msg in conversation:
+        if hasattr(msg, "content") and hasattr(msg, "type"):
+            role = getattr(msg, "role", None) or getattr(msg, "type", "user")
+            result.append({"role": role, "content": msg.content})
+        elif isinstance(msg, dict):
+            result.append(msg)
+        else:
+            result.append({"role": "system", "content": str(msg)})
+    return result
+
+@app.post("/chat/stream")
+async def chat_stream(request: Request, chat_request: ChatRequest):
+    conversation.append({"role": "user", "content": chat_request.query})
+    if len(conversation) > MAX_HISTORY:
+        conversation[:] = conversation[-MAX_HISTORY:]
+
+    safe_conversation = conversation_to_dicts(conversation)
+
+    async def event_generator():
+        async for step in process_query_stream(safe_conversation):
+            yield {
+                "event": "message",
+                "data": json.dumps(to_serializable(step))
+            }
+    return EventSourceResponse(event_generator())
 
 # This is the FastAPI server:
 @app.post("/chat/", response_model=ChatResponse) # This line decorates 'chat' as a POST endpoint
@@ -41,7 +74,6 @@ async def chat_request(request: ChatRequest):
         conversation.append({"role": "user", "content": user_message})
 
         # Trim conversation to MAX_HISTORY
-        from resume_tailoring_agent import MAX_HISTORY
         if len(conversation) > MAX_HISTORY:
             conversation[:] = conversation[-MAX_HISTORY:]
 
@@ -56,3 +88,14 @@ async def chat_request(request: ChatRequest):
     except Exception as e:
         # Handle exceptions or errors
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    print("Shutting down, cancelling all running tasks...")
+    # Cancel all running tasks
+    for session_id, task in list(running_tasks.items()):
+        print(f"Cancelling task {session_id}")
+        task.cancel()
+    # Optionally, wait for all tasks to finish
+    await asyncio.gather(*running_tasks.values(), return_exceptions=True)
+    print("All tasks cancelled.")

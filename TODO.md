@@ -20,12 +20,18 @@
 
 [ x ] Apply Supabase bucket structure
 
-[  ] Add simple download option to UI
+[ x ] Add simple download option to UI
 
-[  ] Add tool calls and results tracking (simple) in UI
+[ x ] Add tool calls and results tracking (simple) in UI (*obs.: it seems like web browser is buffering them...)
 
-[  ] Add authentication and job id logic to properly use the storage structure
+[ x ] Add easy-insert options (text field for job description and linkedin url)
+
+[ x ] Add clearing options for uploaded resume and job description
+
+[ x ] Add authentication and job id logic to properly use the storage structure
+
+[ x ] Download as pdf instead of txt
+
+[  ] Add PDF parsing capability to extract text from uploaded resume files
 
 [  ] Ensure stream support
-
-[  ] Download as pdf instead of md

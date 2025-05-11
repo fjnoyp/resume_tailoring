@@ -92,13 +92,11 @@ async def resume_tailoring_tool(resume_path: str, full_resume_path: str, notes_p
 
 - SHOW DO NOT TELL - don't directly state what the job description is looking for - you need to write about experiences that match it. 
 
-- @resume.md is a good resume that has been vetted by others - your task is to tailor it better to highlight the related experiences that a specific job description might be looking for - you can use @linked-in.md for more information about me. 
-
-- I made an open source ai agentic side project as described in @seren-ai-flutter-readme.md and @seren-ai-langgraph-readme.md and discuss that in @resume.md - regardless of job description it may be good to tweak, shorten, expand, and at the very least, keep this info in any tailored resume as it's an interesting overall experience ... 
+- RESUME FILE is a good resume that has been vetted by others - your task is to tailor it better to highlight the related experiences that a specific job description might be looking for - you can use @linked-in.md for more information about me. 
 
 - **Customization**: Match skills and experiences to the job description.
 - **Clarity**: Use simple, clear language; avoid jargon.
-- **Achievements**: Highlight quantifiable results. See @resume.md for examples on how that was done subtly. 
+- **Achievements**: Highlight quantifiable results. See RESUME FILE for examples on how that was done subtly. 
 - **Professional Tone**: Maintain professionalism; avoid errors.
 - **Keywords**: Use job description keywords for ATS.
 - **Format**: Ensure readability with clear structure.
@@ -111,8 +109,6 @@ async def resume_tailoring_tool(resume_path: str, full_resume_path: str, notes_p
 - **Communication**: Be clear and align strengths with needs.
 - **Research**: Understand the company and role.
 - **Exaggeration**: Ensure claims are evidence-backed.
-
-- When asked to write a resume always write it into a new resume-kyle-cheng-<company-name>.md like resume-kyle-cheng-hightouch.md etc.
 </General Resume Advice>
 
 - **Balance Tailoring with Breadth:** Prioritize aligning the resume's narrative (summary, recent roles, competencies) with the target role's specific requirements and recruiter feedback. *Reframe*, don't remove, broader experiences (AI, Fullstack, Mobile) to highlight transferable skills (system design, API usage, scalability) or showcase unique strengths, especially in projects. Ensure relevance without completely hiding valuable, differentiating skills. Adjust the focus based on role specificity and feedback.
@@ -122,17 +118,13 @@ async def resume_tailoring_tool(resume_path: str, full_resume_path: str, notes_p
 - You can draw on the fuller experiences written in the FULL RESUME file which includes the non-abridged description of all work experiences. Those details are omitted from the resume as there is too much detail, but you may find some of those details useful for specific roles and can rephrase and add them into the resume you are revising as necessary.
 - If there are missing experiences you CANNOT find in the FULL RESUME file, mention them in your response in a section labeled "CANNOT FIND" - the user can possibly provide details on what hasn't been written down yet to aid your rewrite.
 
-- Give reasons in your response explaining how you effectively addressed the recruiter's concerns.
-
-- Always edit the resume file provided to you - do not create a new one. Use the appropriate tool to update the resume file at RESUME FILE PATH. If the file does not exist, create it with proper markdown formatting. Overwrite if it exists.
 - Please do not make up experiences, or mischaracterize an experience (e.g., saying the user did backend integration on the Jetbrains AI chat plugin when they didn't, just because the role requires backend experience). Instead, if you identify such gaps or potential misinterpretations based on the available information, mention this clearly in your response.
-
-- Use the edit_file tool to save your revised resume to the resume file provided to you. Do not just say you wrote the file — actually call the tool.
-- If you are not given a full resume file, you can use available tools to infer the full resume file in the same folder as the resume file provided to you.
 
 - You've been given tools to read the resume files - use them to read the files and edit the RESUME file provided to you.
 - Respond with a concise answer explaining what was changed and that you have updated the RESUME FILE PATH.
+- Give reasons in your response explaining how you effectively addressed the recruiter's concerns.
 - If some of your tool calls fail, respond with a concise answer explaining what happened.
+
 NOTES FILE PATH: {notes_path}
 RESUME FILE PATH: {resume_path}
 FULL RESUME FILE PATH: {full_resume_path}
