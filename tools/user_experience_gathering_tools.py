@@ -3,6 +3,7 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 from tools.supabase_storage_tools import supabase_storage_tools, read_file_from_bucket
 from tools.mcp_servers_tools import invoke_mcp_agent, linkedin_server_params
+from tools.parse_pdf_tool import parse_pdf_tool
 import logging
 import traceback
 
@@ -172,7 +173,7 @@ async def resume_parser_tool(file_path: str) -> str:
 EXISTING FILE PATH (extract from this file): {file_path}
 """}]
     try:
-        agent = create_react_agent(model, [read_file_from_bucket])
+        agent = create_react_agent(model, [read_file_from_bucket, parse_pdf_tool])
         agent_response = await agent.ainvoke({"messages": messages})
         # logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][-1:])
         return agent_response["messages"][-1].content
