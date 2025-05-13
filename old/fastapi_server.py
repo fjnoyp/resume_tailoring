@@ -5,12 +5,12 @@
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from resume_tailoring_agent import process_query, MAX_HISTORY
+from resume_tailoring.resume_tailoring_agent import process_query, MAX_HISTORY
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 import json
-from resume_tailoring_agent import process_query_stream, to_serializable
+from langchain.callbacks.base import AsyncCallbackHandler
 
 # Initialize FastAPI client
 app = FastAPI()
@@ -99,3 +99,66 @@ async def shutdown_event():
     # Optionally, wait for all tasks to finish
     await asyncio.gather(*running_tasks.values(), return_exceptions=True)
     print("All tasks cancelled.")
+
+
+# --- Streaming Callback Handler ---
+class StreamingCallbackHandler(AsyncCallbackHandler):
+    def __init__(self, queue):
+        self.queue = queue
+
+    async def on_chain_start(self, serialized, inputs, **kwargs):
+        await self.queue.put({"type": "system", "content": "Agent: Starting reasoning..."})
+
+    async def on_agent_action(self, action, **kwargs):
+        await self.queue.put({
+            "type": "tool",
+            "content": f"Calling tool: {action.tool} with input: {action.tool_input}"
+        })
+
+    async def on_tool_end(self, output, **kwargs):
+        await self.queue.put({
+            "type": "tool_result",
+            "content": f"Tool result: {output}"
+        })
+
+    async def on_llm_new_token(self, token, **kwargs):
+        await self.queue.put({
+            "type": "ai",
+            "content": token
+        })
+
+# --- Streaming version ---
+async def process_query_stream(conversation):
+    async for event in agent.astream_events({"messages": conversation}):
+        event_type = event.get("event", "")
+        data = event.get("data", {})
+
+        if event_type == "on_chain_start":
+            yield {"type": "system", "content": "Agent: Starting reasoning..."}
+        elif event_type == "on_agent_action":
+            tool = data.get("tool", "unknown tool")
+            tool_input = data.get("tool_input", "")
+            yield {"type": "tool", "content": f"Calling tool: {tool} with input: {tool_input}"}
+        elif event_type == "on_tool_end":
+            output = data.get("output", "")
+            yield {"type": "tool_result", "content": f"Tool result: {output}"}
+        elif event_type == "on_llm_new_token":
+            token = data if isinstance(data, str) else str(data)
+            yield {"type": "ai", "content": token}
+        elif event_type == "on_chain_end":
+            output = data.get("output", "")
+            if output:
+                yield {"type": "ai", "content": output}
+        # If event is not a dict, yield as a system message
+        elif not isinstance(event, dict):
+            yield {"type": "system", "content": str(event)}
+
+
+def to_serializable(obj):
+    if hasattr(obj, "content"):
+        return {"type": getattr(obj, "type", "system"), "content": getattr(obj, "content", str(obj))}
+    if isinstance(obj, dict):
+        return {k: to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [to_serializable(x) for x in obj]
+    return obj

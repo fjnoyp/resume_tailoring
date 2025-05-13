@@ -32,6 +32,8 @@
 
 [ x ] Download as pdf instead of txt
 
+[ x ] Use Langgraph for hosting
+
 [  ] Add PDF parsing capability to extract text from uploaded resume files
 
 [  ] Ensure stream support
