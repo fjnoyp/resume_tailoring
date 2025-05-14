@@ -6,11 +6,11 @@ import io
 
 async def parse_pdf_tool(pdf_bytes: bytes) -> Optional[str]:
     """
-    Extracts text from a PDF file content (bytes) using pdfplumber.
-
+    Extracts all text from a PDF file provided as bytes using pdfplumber. Use this tool to convert a PDF's content into a single plain text string for further processing or analysis.
+    
     Args:
         pdf_bytes: The PDF file content as bytes.
-
+    
     Returns:
         The extracted text as a single string if successful, None otherwise.
     """

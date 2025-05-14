@@ -24,14 +24,14 @@ logging.basicConfig(level=logging.DEBUG)
 
 async def interactive_experience_gathering_tool(full_resume_path: str, target_role: str) -> BaseTool:
     """
-    Gathers user experiences and updates the full resume markdown file in Supabase Storage.
-
-    Parameters:
-    - full_resume_path (str, required): Supabase Storage path to the full resume markdown file
-    - target_role (str, required): Role description to guide experience gathering
-
+    Gathers targeted experience details from the user by generating specific questions, guided by the target role. Use this tool to collect new information for a resume, but it does not update or write to any files.
+    
+    Args:
+        full_resume_path: Supabase Storage path to the full resume markdown file (used for context only).
+        target_role: Role description to guide the experience gathering questions.
+    
     Returns:
-    - list[str]: A list of one or more specific, targeted questions to ask the user in order to gather further experiences or details for their resume. Does NOT update or write to the full resume file in this step.
+        A list of one or more specific, targeted questions as a string or list, to ask the user for further experience details. Does not modify any files.
     """
     logging.debug(f"[DEBUG] interactive_experience_gathering_tool called with full_resume_path={full_resume_path}, target_role={target_role}")
 
@@ -67,19 +67,14 @@ TARGET ROLE: {target_role}
     
 async def full_resume_update_tool(full_resume_path: str, info_to_add: str) -> BaseTool:
     """
-    Updates the full resume markdown file in Supabase Storage by adding new information.
-
-    Parameters:
-    - full_resume_path (str, required): Supabase Storage path to the full resume markdown file to update/create
-    - info_to_add (str, required): The new information to add, as a markdown string (typically but not necessarily the output of resume_parser_tool or linkedin_profile_parser_tool)
-
-    IMPORTANT:
-    - **THIS TOOL MUST BE CALLED WITH BOTH full_resume_path AND info_to_add.**
-    - The info_to_add parameter is required and should be the markdown string output from the previous parser tool call (e.g., resume_parser_tool or linkedin_profile_parser_tool) OR the user answer to a gathering question.
-    - If you have just called a parser tool, you must use its output as the info_to_add parameter.
-
+    Merges new information into the full resume markdown file in Supabase Storage, creating the file if it does not exist. Only adds non-duplicate content and always uploads the full, updated markdown resume.
+    
+    Args:
+        full_resume_path: Supabase Storage path to the full resume markdown file to update or create.
+        info_to_add: New information to add, as a markdown string (typically from a parser tool or user answer).
+    
     Returns:
-    - str: A concise message explaining what was added and that the FULL RESUME FILE PATH was updated. If tool calls fail, a concise message explaining what happened.
+        A concise message explaining what was added and that the full resume file was updated or created. If tool calls fail, a concise error message.
     """
     logging.debug(f"[DEBUG] full_resume_update_tool called with full_resume_path={full_resume_path}, info_to_add={info_to_add}")
 
@@ -110,14 +105,13 @@ INFORMATION TO ADD: {info_to_add}
 
 async def linkedin_profile_parser_tool(linkedin_url: str) -> str:
     """
-    Parses a LinkedIn profile and returns the extracted, structured information as a markdown string.
-    This tool must only be used with valid LinkedIn profile URLs (e.g., 'https://www.linkedin.com/in/username'). Do NOT use file paths (e.g., '[...]/linkedin.md'), or any non-URL input. Only proper LinkedIn web addresses are accepted.
-
-    Parameters:
-    - linkedin_url (str, required): LinkedIn profile URL
-
+    Extracts structured information from a LinkedIn profile URL and returns it as properly formatted markdown. DO NOT use this tool unless the input is a valid LinkedIn web address (e.g., 'https://www.linkedin.com/in/username'). Do not use with file paths or Supabase files named 'linkedin.md' or similar.
+    
+    Args:
+        linkedin_url: LinkedIn profile URL (must be a valid LinkedIn web address).
+    
     Returns:
-    - str: The full, properly formatted markdown content extracted from the LinkedIn profile. **This output is intended to be used as the info_to_add parameter for full_resume_update_tool.** Does not write to storage.
+        The full, properly formatted markdown content extracted from the LinkedIn profile. Intended for use as info_to_add for full_resume_update_tool. Does not write to storage.
     """
     logging.debug(f"[DEBUG] linkedin_profile_parser_tool called with linkedin_url={linkedin_url}")
 
@@ -145,17 +139,17 @@ LINKEDIN URL: {linkedin_url}
         logging.error(traceback.format_exc())
         return None
 
-async def resume_parser_tool(file_path: str) -> str:
+async def career_info_parser_tool(file_path: str) -> str:
     """
-    Parses an existing resume (or experience/skills related) file and returns the extracted, structured information as a markdown string.
-
-    Parameters:
-    - file_path (str, required): Supabase Storage path to the file to parse
-
+    Extracts structured information from an existing resume or related file in Supabase Storage and returns it as properly formatted markdown. Use this tool to convert a file's content into markdown for further resume updates.
+    
+    Args:
+        file_path: Supabase Storage path to the file to parse.
+    
     Returns:
-    - str: The full, properly formatted markdown content extracted from the file. **This output is intended to be used as the info_to_add parameter for full_resume_update_tool.** Does not write to storage.
+        The full, properly formatted markdown content extracted from the file. Intended for use as info_to_add for full_resume_update_tool. Does not write to storage.
     """
-    logging.debug(f"[DEBUG] resume_parser_tool called with file_path={file_path}")
+    logging.debug(f"[DEBUG] career_info_parser_tool called with file_path={file_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional resume experience gatherer from an existing file
@@ -175,10 +169,10 @@ EXISTING FILE PATH (extract from this file): {file_path}
     try:
         agent = create_react_agent(model, [read_file_from_bucket, parse_pdf_tool])
         agent_response = await agent.ainvoke({"messages": messages})
-        # logging.debug("[DEBUG] Agent response in resume_parser_tool: %s", agent_response["messages"][-1:])
+        # logging.debug("[DEBUG] Agent response in career_info_parser_tool: %s", agent_response["messages"][-1:])
         return agent_response["messages"][-1].content
     except Exception as e:
-        logging.error(f"[DEBUG] Error in resume_parser_tool: {e}")
+        logging.error(f"[DEBUG] Error in career_info_parser_tool: {e}")
         logging.error(traceback.format_exc())
         return None
 
@@ -187,5 +181,5 @@ user_experience_gathering_tools = [
     interactive_experience_gathering_tool,
     full_resume_update_tool,
     linkedin_profile_parser_tool,
-    resume_parser_tool
+    career_info_parser_tool
 ]
