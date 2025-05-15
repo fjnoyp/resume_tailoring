@@ -32,5 +32,5 @@ langgraph dev
 ## Running the evaluator
 
 ```bash
-python evaluators/langsmith_evaluator.py --user-id [target_user_id] --job-id [target_job_id]
+python evaluators/production_evaluator.py --user-id [target_user_id] --job-id [target_job_id]
 ```
