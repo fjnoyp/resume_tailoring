@@ -32,6 +32,8 @@ async def interactive_experience_gathering_tool(full_resume_path: str, target_ro
     
     Returns:
         A list of one or more specific, targeted questions as a string or list, to ask the user for further experience details. Does not modify any files.
+    
+    Note: This tool should be called whenever there's a skill gap or missing experience in the output of the resume_tailoring_tool, in order to gather the missing experience details from the user.
     """
     logging.debug(f"[DEBUG] interactive_experience_gathering_tool called with full_resume_path={full_resume_path}, target_role={target_role}")
 

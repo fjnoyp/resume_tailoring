@@ -72,6 +72,7 @@ NOTES_PATH: {notes_path}
 async def resume_tailoring_tool(resume_path: str, full_resume_path: str, notes_path: str, tailored_resume_path: str) -> BaseTool:
     """
     Tailors a resume based on recruiter feedback and the user's full resume, and writes the tailored resume to a new file (TAILORED_RESUME.md) in Supabase Storage. Use this tool to improve a resume for a specific job based on recruiter analysis and the user's complete experience.
+    If you notice any skill gaps or missing experiences in the tool response, you should immediately call the interactive_experience_gathering_tool to gather the missing information from the user.
     
     Args:
         resume_path: Supabase Storage object path to the resume to tailor (markdown).
