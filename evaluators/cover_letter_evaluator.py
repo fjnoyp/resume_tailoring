@@ -10,7 +10,7 @@ A highly effective cover letter:
 - Demonstrates clear alignment with the job description and company values through relevant experiences and skills (SHOW, DO NOT TELL)
 - Provides a compelling narrative that complements the resume, addressing both strengths and potential weaknesses or gaps
 - Highlights quantifiable achievements and unique value, using subtle, evidence-backed claims
-- Appropriately incorporates and adapts information from @resume.md, @linked-in.md, and, if relevant, @seren-ai-flutter-readme.md and @seren-ai-langgraph-readme.md
+- Appropriately incorporates and adapts information from <tailored_resume> and, if relevant, <full_resume>
 - Maintains clarity, professionalism, and error-free language
 - Uses job description keywords naturally for ATS optimization
 - Is concise (200-500 words), focused, and avoids redundancy or generic statements
@@ -30,7 +30,6 @@ When scoring, you should penalize:
 - Overly verbose, redundant, or unfocused information
 - Ignoring strategic company/culture fit or recruiter perspective
 - Failing to complement or add value beyond the resume
-
 </Rubric>
 
 <Instructions>
@@ -60,11 +59,15 @@ When scoring, you should penalize:
 <tailored_resume>
 {outputs["tailored_resume"]}
 </tailored_resume>
+
+<full_resume>
+{inputs["full_resume"]}
+</full_resume>
 """
 
 cover_letter_evaluator = create_llm_as_judge(
         prompt=cover_letter_evaluator_prompt,
         model="anthropic:claude-3-5-sonnet-latest",
-        feedback_key="output_quality",
+        feedback_key="cover_letter_quality",
         continuous=True,
     )
