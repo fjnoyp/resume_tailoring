@@ -46,15 +46,7 @@ async def fetch_inputs_for_example(user_id, job_id):
         "full_resume": full_resume_bytes.decode("utf-8") if full_resume_bytes else "",
     }
 
-async def main():
-    parser = argparse.ArgumentParser(description="Run the resume tailoring evaluator.")
-    parser.add_argument("--user-id", required=True, help="The user ID")
-    parser.add_argument("--job-id", required=True, help="The job ID")
-    args = parser.parse_args()
-
-    user_id = args.user_id
-    job_id = args.job_id
-
+async def run_evaluation(user_id, job_id):
     example_inputs = await fetch_inputs_for_example(user_id, job_id)
 
     try:
@@ -82,6 +74,17 @@ async def main():
         experiment_prefix="resume-tailoring",
         max_concurrency=2,
     )
+
+async def main():
+    parser = argparse.ArgumentParser(description="Run the resume tailoring evaluator.")
+    parser.add_argument("--user-id", required=True, help="The user ID")
+    parser.add_argument("--job-id", required=True, help="The job ID")
+    args = parser.parse_args()
+
+    user_id = args.user_id
+    job_id = args.job_id
+
+    await run_evaluation(user_id, job_id)
 
 if __name__ == "__main__":
     asyncio.run(main())
