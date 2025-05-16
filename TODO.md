@@ -2,7 +2,7 @@
 
 [x] Restructure backend ai project folders and files to align with [next_goals.md](./plan/next_goals.md) modules
 
-[ ] Reorganize and rename Supabase Storage files to better match [next_goals.md](./plan/next_goals.md) instructions
+[x] Reorganize and rename Supabase Storage files to better match [next_goals.md](./plan/next_goals.md) instructions
 
 [ ] Host flutter app using Firebase Hosting
 
