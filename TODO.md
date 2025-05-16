@@ -1,39 +1,13 @@
 # TO DO
 
-[ x ] Basic react agent with tool access
+[  ] Restructure backend ai project folders and files to align with [next_goals.md](./plan/next_goals.md) modules
 
-[ x ] Basic chat loop
+[  ] Reorganize and rename Supabase Storage files to better match [next_goals.md](./plan/next_goals.md) instructions
 
-[ x ] Resume tailoring tools
+[  ] Improve "ask-user" (originally "interactive_experience_gathering_tool") tool prompt to generate the expected complete result
 
-[ x ] Info gathering tools
+[  ] Improve "tailor-resume" (originally "resume_tailoring_tool") tool prompt to provide full analysis/description on why it was tailored in this way
 
-[ x ] Wrap with FastAPI (can be local hosted for now)
+[  ] Refactor UI based on [next_goals.md](./plan/next_goals.md) for improved user experience
 
-[ x ] Basic UI with chat and file upload
-
-[ x ] Migrate from filesystem tools to supabase tools
-
-[ x ] Update UI to easily set user resume and job description (optionally we could add other experiences/skills sources)
-
-[ x ] Add results visualization to UI
-
-[ x ] Apply Supabase bucket structure
-
-[ x ] Add simple download option to UI
-
-[ x ] Add tool calls and results tracking (simple) in UI (*obs.: it seems like web browser is buffering them...)
-
-[ x ] Add easy-insert options (text field for job description and linkedin url)
-
-[ x ] Add clearing options for uploaded resume and job description
-
-[ x ] Add authentication and job id logic to properly use the storage structure
-
-[ x ] Download as pdf instead of txt
-
-[ x ] Use Langgraph for hosting
-
-[  ] Add PDF parsing capability to extract text from uploaded resume files
-
-[  ] Ensure stream support
+[  ] Overall alignment with [ai_strategies.md](./plan/ai/ai_strategies.md) and [resume-writing-guidelines.md](./plan/ai/resume-writing-guides.md)
