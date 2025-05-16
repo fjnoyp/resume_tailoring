@@ -8,33 +8,6 @@ from langchain_anthropic import ChatAnthropic
 from contextlib import AsyncExitStack
 import os
 
-from tools import supabase_storage_tools
-
-# Server parameters for server-filesystem
-filesystem_server_params = StdioServerParameters(
-    command="npx",
-    args=[
-          "-y",
-          "@modelcontextprotocol/server-filesystem",
-          f"{os.getcwd()}"
-        ],
-)
-
-# Server parameters for Supabase MCP server
-supabase_access_token = os.getenv("SUPABASE_ACCESS_TOKEN")
-if not supabase_access_token:
-    raise RuntimeError("SUPABASE_ACCESS_TOKEN environment variable is not set. Please set it before running.")
-
-supabase_server_params = StdioServerParameters(
-    command="npx",
-    args=[
-        "-y",
-        "@supabase/mcp-server-supabase",
-        "--access-token",
-        supabase_access_token
-    ],
-)
-
 # Using fetch mcp server to fetch LinkedIn data does not work because we need authentication
 # Server parameters for HorizonDataWave LinkedIn MCP server
 # Make sure to set these environment variables in your system or .env file
@@ -46,6 +19,8 @@ linkedin_server_params = StdioServerParameters(
         "HDW_ACCOUNT_ID": os.getenv("HDW_ACCOUNT_ID")
     }
 )
+
+# add other server parameters as needed
 
 async def invoke_mcp_agent(messages: list[dict[str, str]], server_params_list: list, additional_tools: list = []):
     """

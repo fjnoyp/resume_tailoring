@@ -3,7 +3,7 @@
         "."
     ],
     "graphs": {
-        "agent": "resume_tailoring.resume_tailoring_agent:agent"
+        "agent": "full_tailor_resume.main_agent:agent"
     },
     "env": ".env"
 }

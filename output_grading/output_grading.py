@@ -5,8 +5,8 @@ load_dotenv()
 
 import asyncio
 from langsmith import Client
-from evaluators.cover_letter_evaluator import cover_letter_evaluator
-from evaluators.resume_tailoring_evaluator import resume_tailoring_evaluator
+from output_grading.cover_letter_evaluator import cover_letter_evaluator
+from output_grading.resume_tailoring_evaluator import resume_tailoring_evaluator
 from tools.supabase_storage_tools import get_user_files_paths, read_file_from_bucket
 import argparse
 

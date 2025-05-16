@@ -4,7 +4,7 @@ import asyncio
 from typing import Optional
 import io
 
-async def parse_pdf_tool(pdf_bytes: bytes) -> Optional[str]:
+async def parse_pdf(pdf_bytes: bytes) -> Optional[str]:
     """
     Extracts all text from a PDF file provided as bytes using pdfplumber. Use this tool to convert a PDF's content into a single plain text string for further processing or analysis.
     

@@ -25,9 +25,9 @@ async def get_user_files_paths(user_id: str, job_id: str | None = None) -> dict[
 
     response = {
         "user_full_resume_path": f"{user_id}/FULL_RESUME.md",
+        "original_resume_path": f"{user_id}/ORIGINAL_RESUME.md",
         "job_description_path": f"{user_id}/{job_id}/JOB_DESCRIPTION.md",
         "tailored_resume_path": f"{user_id}/{job_id}/TAILORED_RESUME.md",
-        "original_resume_path": f"{user_id}/{job_id}/ORIGINAL_RESUME.md",
         "recruiter_notes_path": f"{user_id}/{job_id}/NOTES.md",
         "cover_letter_path": f"{user_id}/{job_id}/COVER_LETTER.md",
         "path for any other files": f"{user_id}/{job_id}/[file_name]"

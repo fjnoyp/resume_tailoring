@@ -1,4 +1,5 @@
 # NOT TESTED: the files for the current user and job are not available in Supabase yet
+# TODO: implement AI Unit Tests for each module based on this (create particular evaluators and calls for each)
 
 from dotenv import load_dotenv
 
@@ -7,7 +8,7 @@ load_dotenv()
 import asyncio
 from langsmith import Client
 from langsmith.evaluation import StringDistanceEvaluator
-from resume_tailoring.resume_tailoring_agent import agent
+from full_tailor_resume.resume_tailoring_agent import agent
 from tools.supabase_storage_tools import get_user_files_paths, read_file_from_bucket
 from openevals.llm import create_llm_as_judge
 from openevals.prompts import (
@@ -137,7 +138,7 @@ async def main():
         else:
             logging.info(f"Example already exists for {test_case['user_id']}/{test_case['job_id']}")
 
-    # Use openevals LLM-as-a-judge evaluators for correctness, relevance, conciseness, and fluency
+    # Examples: openevals LLM-as-a-judge evaluators for correctness, relevance, conciseness, and fluency
     correctness_evaluator = create_llm_as_judge(
         prompt=CORRECTNESS_PROMPT,
         feedback_key="correctness",
