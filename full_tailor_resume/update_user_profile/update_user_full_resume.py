@@ -7,6 +7,7 @@ import traceback
 
 logging.basicConfig(level=logging.DEBUG)
 
+# TODO: add as a separated "graph" in langgraph.json and call it after gathering info from "ask_user" calls
 async def update_user_full_resume(full_resume_path: str, info_to_add: str) -> BaseTool:
     """
     Merges new information into the full resume markdown file in Supabase Storage, creating the file if it does not exist. Only adds non-duplicate content and always uploads the full, updated markdown resume.

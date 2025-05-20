@@ -4,7 +4,7 @@
 
 [x] Reorganize and rename Supabase Storage files to better match [next_goals.md](./plan/next_goals.md) instructions
 
-[ ] Host flutter app using Firebase Hosting
+[x] Host flutter app using Firebase Hosting
 
 [ ] Improve "ask-user" (originally "interactive_experience_gathering_tool") tool prompt to generate the expected complete result
 

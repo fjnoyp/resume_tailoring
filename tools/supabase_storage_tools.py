@@ -9,26 +9,25 @@ supabase_client: Client = create_client(os.environ.get("SUPABASE_URL"), os.envir
 
 bucket_name = "temp"
 
-async def get_user_files_paths(user_id: str, job_id: str | None = None) -> dict[str, str]:
+def get_user_files_paths(user_id: str, job_id: str) -> dict[str, str]:
     """
     Returns the standard storage paths for all main user/job-related files in Supabase. Use to get canonical file locations for a user and job, regardless of file existence.
 
     Args:
         user_id: Unique user identifier (from context).
-        job_id (optional): Unique job identifier (from context). If not provided, a placeholder is used.
+        job_id: Unique job identifier (from context).
     
     Returns:
-        Dict with full paths for resume, job description, tailored resume, original resume, recruiter notes, cover letter, and any other files (with a placeholder for the file name).
+        Dict with full paths for resume, job description, job strategy, tailored resume, original resume, recruiter feedback, cover letter, and any other files (with a placeholder for the file name).
     """
-    if job_id is None:
-        job_id = "[job_id]"
 
     response = {
         "user_full_resume_path": f"{user_id}/FULL_RESUME.md",
         "original_resume_path": f"{user_id}/ORIGINAL_RESUME.md",
         "job_description_path": f"{user_id}/{job_id}/JOB_DESCRIPTION.md",
+        "job_strategy_path": f"{user_id}/{job_id}/JOB_STRATEGY.md",
         "tailored_resume_path": f"{user_id}/{job_id}/TAILORED_RESUME.md",
-        "recruiter_notes_path": f"{user_id}/{job_id}/NOTES.md",
+        "recruiter_feedback_path": f"{user_id}/{job_id}/RECRUITER_FEEDBACK.md",
         "cover_letter_path": f"{user_id}/{job_id}/COVER_LETTER.md",
         "path for any other files": f"{user_id}/{job_id}/[file_name]"
     }

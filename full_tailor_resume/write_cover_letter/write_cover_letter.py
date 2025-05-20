@@ -7,7 +7,7 @@ import traceback
 
 logging.basicConfig(level=logging.DEBUG)
 
-async def write_cover_letter(resume_path: str, full_resume_path: str, job_description_path: str, notes_path: str, cover_letter_path: str) -> BaseTool:
+async def write_cover_letter(resume_path: str, full_resume_path: str, job_description_path: str, feedback_path: str, cover_letter_path: str) -> BaseTool:
     """
     Writes a cover letter for a resume based on recruiter feedback and a job description, saving it as COVER_LETTER.md in Supabase Storage. Use this tool to generate a cover letter that addresses recruiter concerns and highlights the candidate's strengths for the target job.
     
@@ -15,7 +15,7 @@ async def write_cover_letter(resume_path: str, full_resume_path: str, job_descri
         resume_path: Supabase Storage object path to the TAILORED resume (markdown).
         full_resume_path: Supabase Storage object path to the user's full resume (markdown).
         job_description_path: Supabase Storage object path to the job description (markdown).
-        notes_path: Supabase Storage object path to recruiter feedback (markdown).
+        feedback_path: Supabase Storage object path to recruiter feedback (markdown).
         cover_letter_path: Supabase Storage object path to the cover letter file (markdown).
     
     Returns:
@@ -23,11 +23,11 @@ async def write_cover_letter(resume_path: str, full_resume_path: str, job_descri
     
     Note: The correct Supabase Storage object paths for all files must be provided as arguments. If you are unsure how to construct these paths, use the get_user_files_paths tool (with the appropriate user_id and job_id) to obtain the canonical paths before calling this tool.
     """
-    logging.debug(f"[DEBUG] write_cover_letter tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, job_description_path={job_description_path}, notes_path={notes_path}, cover_letter_path={cover_letter_path}")
+    logging.debug(f"[DEBUG] write_cover_letter tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, job_description_path={job_description_path}, feedback_path={feedback_path}, cover_letter_path={cover_letter_path}")
 
     messages = [{"role": "user", "content": f"""
 - You are a professional cover letter writer
-- The job spec (JOB_DESCRIPTION_PATH), recruiter feedback (NOTES_PATH), the candidate's tailored resume (RESUME_PATH), and full experience history (FULL_RESUME_PATH) will be provided to you, all as markdown files in Supabase Storage.
+- The job spec (JOB_DESCRIPTION_PATH), recruiter feedback (feedback_PATH), the candidate's tailored resume (RESUME_PATH), and full experience history (FULL_RESUME_PATH) will be provided to you, all as markdown files in Supabase Storage.
 - Your main goal is to create a cover letter that helps the candidate's overall application for the job spec. Focus on content that addresses recruiter concerns and highlights the candidate's strengths and fit for the role.
 - Consider the weaknesses highlighted in the recruiter feedback and how the cover letter can help support or explain any weaknesses indirectly to increase the chance the recruiter accepts the candidate's application.
 - Consider the ideal strengths/general experience the candidate has that might not be fully explained in the resume or could be explained more that would help the overall chance for the recruiter to accept the application.
@@ -43,7 +43,7 @@ async def write_cover_letter(resume_path: str, full_resume_path: str, job_descri
 RESUME_PATH: {resume_path}
 FULL_RESUME_PATH: {full_resume_path}
 JOB_DESCRIPTION_PATH: {job_description_path}
-NOTES_PATH: {notes_path}
+feedback_PATH: {feedback_path}
 COVER_LETTER_PATH: {cover_letter_path}
 """}]
     
