@@ -6,29 +6,30 @@ from src.tools.supabase_storage_tools import (
 from ..main_agent import model
 import logging
 import traceback
+from src.state import GraphState
+from langchain_core.runnables import RunnableConfig
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-async def job_description_analyzer(inputs: dict) -> str:
+async def job_description_analyzer(state: GraphState, config: RunnableConfig) -> dict:
     """
     Analyzes a job description to extract and synthesize the underlying company requirements, strategy, and recruiter psychology, producing a comprehensive markdown document.
-    If job_description is not provided, it is loaded from Supabase Storage using user_id and job_id.
+    If job_description is not provided from state, it is loaded from Supabase Storage using user_id and job_id from state.
 
     Args:
-        job_description: The raw job description text to analyze (optional).
-        user_id: Unique user identifier.
-        job_id: Unique job identifier.
+        state: The current graph state.
+        config: The LangChain runnable config.
 
     Returns:
-        The generated Job Strategy Document (markdown content as a string).
+        A dictionary to update the graph state with the job_strategy.
     """
     try:
-        user_id = inputs["user_id"]
-        job_id = inputs["job_id"]
-        if "job_description" in inputs:
-            job_description = inputs["job_description"]
-        else:
+        user_id = state["user_id"]
+        job_id = state["job_id"]
+        job_description = state.get("job_description")
+
+        if not job_description:
             file_paths = get_user_files_paths(user_id, job_id)
             job_description_path = file_paths["job_description_path"]
             job_description_bytes = (
@@ -62,8 +63,11 @@ JOB_DESCRIPTION:
         await upload_file_to_bucket(job_strategy_path, markdown_content)
         logging.debug(f"[DEBUG] Job strategy document uploaded to {job_strategy_path}")
 
-        return {"user_id": user_id, "job_id": job_id, "job_strategy": markdown_content}
+        # Return only the fields that update the state
+        return {"job_strategy": markdown_content}
     except Exception as e:
         logging.error(f"[DEBUG] Error in analyze_job_description tool: {e}")
         logging.error(traceback.format_exc())
-        return f"Error: {str(e)}"
+        # It's better to raise the exception or return a state that indicates an error
+        # For now, returning a dict with an error message to fit the expected dict return type.
+        return {"error": f"Error in job_description_analyzer: {str(e)}"}

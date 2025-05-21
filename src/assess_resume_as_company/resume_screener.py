@@ -6,50 +6,46 @@ from src.tools.supabase_storage_tools import (
 from ..main_agent import agent
 import logging
 import traceback
+from src.state import GraphState
+from langchain_core.runnables import RunnableConfig
 
 logging.basicConfig(level=logging.DEBUG)
 
 
 # TODO: after implementing `impersonate_company`, use company-specific info here instead of just a job description
-async def resume_screener(inputs: dict) -> str:
+async def resume_screener(state: GraphState, config: RunnableConfig) -> dict:
     """
     Analyzes a resume against a job description and writes a full markdown analysis to a recruiter feedback file (feedback.md) in Supabase Storage. Use this tool to generate recruiter-style feedback and recommendations for a candidate.
-    If any of resume, job_description, or job_strategy is not provided, it is loaded from Supabase Storage using user_id and job_id.
+    If any of resume, job_description, or job_strategy is not provided from state, it is loaded from Supabase Storage using user_id and job_id from state.
 
     Args:
-        resume: The raw resume text to analyze (optional).
-        job_description: The raw job description text to analyze (optional).
-        job_strategy: The raw job strategy text to analyze (optional).
-        user_id: Unique user identifier.
-        job_id: Unique job identifier.
+        state: The current graph state.
+        config: The LangChain runnable config.
 
     Returns:
-        The generated recruiter feedback (markdown content as a string).
+        A dictionary to update the graph state with recruiter_feedback.
     """
     try:
-        user_id = inputs["user_id"]
-        job_id = inputs["job_id"]
+        user_id = state["user_id"]
+        job_id = state["job_id"]
         file_paths = get_user_files_paths(user_id, job_id)
 
-        if "resume" in inputs:
-            job_description = inputs["resume"]
-        else:
+        resume = state.get("original_resume")
+        if not resume:
             resume_path = file_paths["original_resume_path"]
             resume_bytes = await read_file_from_bucket(resume_path) or b""
             resume = resume_bytes.decode("utf-8")
 
-        if "job_description" in inputs:
-            job_description = inputs["job_description"]
-        else:
+        job_description = state.get("job_description")
+        if not job_description:
             job_description_path = file_paths["job_description_path"]
             job_description_bytes = (
                 await read_file_from_bucket(job_description_path) or b""
             )
             job_description = job_description_bytes.decode("utf-8")
 
-        if "job_strategy" in inputs:
-            job_strategy = inputs["job_strategy"]
-        else:
+        job_strategy = state.get("job_strategy")
+        if not job_strategy:
             job_strategy_path = file_paths["job_strategy_path"]
             job_strategy_bytes = await read_file_from_bucket(job_strategy_path) or b""
             job_strategy = job_strategy_bytes.decode("utf-8")
@@ -87,9 +83,11 @@ JOB_STRATEGY:
             f"[DEBUG] Recruiter feedback document uploaded to {feedback_path}"
         )
 
-        return {"user_id": user_id, "job_id": job_id, "content": markdown_content}
+        # Return only the fields that update the state
+        return {"recruiter_feedback": markdown_content}
     except Exception as e:
-        logging.debug(f"[DEBUG] resume_screener inputs: {inputs}")
+        # Log the state for debugging purposes if an error occurs
+        logging.error(f"[DEBUG] Error in resume_screener. Current state: {state}")
         logging.error(f"[DEBUG] Error in resume_screener tool: {e}")
         logging.error(traceback.format_exc())
-        return f"Error: {str(e)}"
+        return {"error": f"Error in resume_screener: {str(e)}"}

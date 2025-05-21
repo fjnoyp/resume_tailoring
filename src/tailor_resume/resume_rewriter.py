@@ -8,49 +8,72 @@ from src.tools.supabase_storage_tools import (
 )
 import logging
 import traceback
+from src.state import GraphState
+from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import HumanMessage
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-async def resume_rewriter(inputs: dict) -> str:
+async def resume_rewriter(state: GraphState, config: RunnableConfig) -> dict:
     """
-    Tailors a resume for a specific job by leveraging recruiter feedback, job description, job strategy, and the user's full resume. Writes the tailored resume to Supabase Storage and returns its content.
+    Tailors a resume for a specific job by leveraging various inputs from the state or Supabase.
+    Writes the tailored resume to Supabase Storage.
+    If the agent decides to call the 'ask_user' tool, it returns the agent's response directly for the graph to handle.
+    Otherwise, it returns the tailored resume content to update the state.
 
     Args:
-        user_id: The user's unique identifier.
-        job_id: The job's unique identifier.
+        state: The current graph state, providing user_id, job_id, and potentially other data.
+        config: The LangChain runnable config.
+
     Returns:
-        The tailored resume content as a string (after writing to Supabase Storage).
+        A dictionary. If 'ask_user' is triggered, this is the agent's direct response (containing 'type': 'ask_user').
+        Otherwise, it's a dictionary to update the graph state with the tailored_resume and messages.
     """
     try:
-        user_id = inputs["user_id"]
-        job_id = inputs["job_id"]
+        user_id = state["user_id"]
+        job_id = state["job_id"]
+        messages_history = state.get("messages", [])
 
-        # Get all relevant file paths
         file_paths = get_user_files_paths(user_id, job_id)
-        original_resume_path = file_paths["original_resume_path"]
-        full_resume_path = file_paths["user_full_resume_path"]
-        recruiter_feedback_path = file_paths["recruiter_feedback_path"]
-        job_description_path = file_paths["job_description_path"]
-        job_strategy_path = file_paths["job_strategy_path"]
         tailored_resume_path = file_paths["tailored_resume_path"]
 
-        # Read all relevant files from Supabase
-        original_resume_bytes = await read_file_from_bucket(original_resume_path) or b""
-        full_resume_bytes = await read_file_from_bucket(full_resume_path) or b""
-        recruiter_feedback_bytes = (
-            await read_file_from_bucket(recruiter_feedback_path) or b""
+        # Prefer data from state if available, otherwise fetch
+        original_resume = state.get("original_resume")
+        if not original_resume:
+            original_resume_bytes = (
+                await read_file_from_bucket(file_paths["original_resume_path"]) or b""
+            )
+            original_resume = original_resume_bytes.decode("utf-8")
+
+        full_resume_bytes = (
+            await read_file_from_bucket(file_paths["user_full_resume_path"]) or b""
         )
-        job_description_bytes = await read_file_from_bucket(job_description_path) or b""
-        job_strategy_bytes = await read_file_from_bucket(job_strategy_path) or b""
-
-        original_resume = original_resume_bytes.decode("utf-8")
         full_resume = full_resume_bytes.decode("utf-8")
-        recruiter_feedback = recruiter_feedback_bytes.decode("utf-8")
-        job_description = job_description_bytes.decode("utf-8")
-        job_strategy = job_strategy_bytes.decode("utf-8")
 
-        message = f"""
+        recruiter_feedback = state.get("recruiter_feedback")
+        if not recruiter_feedback:
+            recruiter_feedback_bytes = (
+                await read_file_from_bucket(file_paths["recruiter_feedback_path"])
+                or b""
+            )
+            recruiter_feedback = recruiter_feedback_bytes.decode("utf-8")
+
+        job_description = state.get("job_description")
+        if not job_description:
+            job_description_bytes = (
+                await read_file_from_bucket(file_paths["job_description_path"]) or b""
+            )
+            job_description = job_description_bytes.decode("utf-8")
+
+        job_strategy = state.get("job_strategy")
+        if not job_strategy:
+            job_strategy_bytes = (
+                await read_file_from_bucket(file_paths["job_strategy_path"]) or b""
+            )
+            job_strategy = job_strategy_bytes.decode("utf-8")
+
+        prompt_text = f"""
 - You are a professional resume expert.
 - Your task is to rewrite the candidate's resume for the target job, maximizing the likelihood of acceptance.
 - First, attempt to tailor the resume using only the ORIGINAL_RESUME, RECRUITER_FEEDBACK, JOB_DESCRIPTION, and JOB_STRATEGY.
@@ -101,31 +124,64 @@ JOB_STRATEGY:
 {job_strategy}
 """
 
-        # Initialize the model
+        # Prepare messages for the agent, including history and the main prompt
+        # The `messages_history` is taken from the state
+        agent_messages = list(messages_history)  # Make a copy to append to
+        agent_messages.append(HumanMessage(content=prompt_text))
+
         model = ChatAnthropic(
             model_name="claude-3-5-sonnet-latest", timeout=120, stop=None
         )
         agent = create_react_agent(model, [ask_user])
 
-        agent_response = await agent.ainvoke(
-            {"messages": [{"role": "user", "content": message}]}
-        )
+        agent_response_dict = await agent.ainvoke({"messages": agent_messages})
 
+        # Check if the agent's response (which is a dictionary itself) indicates an ask_user call
         if (
-            isinstance(agent_response, dict)
-            and agent_response.get("type") == "ask_user"
+            isinstance(agent_response_dict, dict)
+            and agent_response_dict.get("type") == "ask_user"
         ):
-            return agent_response  # This will be picked up by the graph for interrupt
+            # If ask_user is triggered, return the agent_response_dict directly.
+            # This dict will be passed to the graph's conditional edge logic.
+            # LangGraph will also merge this dict into the state.
+            return agent_response_dict
 
-        logging.debug(f"[DEBUG] agent_response: {agent_response}")
-        tailored_resume = agent_response["messages"][-1]
+        # If not asking user, extract the tailored resume from the agent's final message
+        # The agent_response_dict contains a "messages" list with the conversation history.
+        final_ai_message_content = ""
+        if agent_response_dict.get("messages"):
+            last_message = agent_response_dict["messages"][-1]
+            if hasattr(last_message, "content"):
+                final_ai_message_content = last_message.content
+            else:  # Fallback if content is not directly an attribute (e.g. if it's a dict itself)
+                final_ai_message_content = str(last_message)
+        else:
+            logging.warning(
+                "[DEBUG] No messages found in agent_response_dict from resume_rewriter"
+            )
+            final_ai_message_content = "Error: No content from resume rewriter agent."
 
-        # Upload the tailored resume to Supabase
-        await upload_file_to_bucket(tailored_resume_path, tailored_resume)
+        tailored_resume_content = final_ai_message_content
+
+        await upload_file_to_bucket(tailored_resume_path, tailored_resume_content)
         logging.debug(f"[DEBUG] Tailored resume uploaded to {tailored_resume_path}")
 
-        return tailored_resume
+        # Return a dictionary to update the GraphState
+        # This includes the new tailored_resume and the full message history from the agent.
+        return {
+            "tailored_resume": tailored_resume_content,
+            "messages": agent_response_dict.get(
+                "messages", agent_messages
+            ),  # Update full conversation history
+        }
+
     except Exception as e:
+        logging.error(
+            f"[DEBUG] Error in resume_rewriter. Current state keys: {list(state.keys()) if isinstance(state, dict) else 'state is not a dict'}"
+        )
         logging.error(f"[DEBUG] Error in resume_rewriter: {e}")
         logging.error(traceback.format_exc())
-        return f"Error: {str(e)}"
+        return {
+            "error": f"Error in resume_rewriter: {str(e)}",
+            "messages": state.get("messages", []),
+        }
