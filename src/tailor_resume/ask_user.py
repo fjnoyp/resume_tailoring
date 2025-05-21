@@ -2,7 +2,7 @@ import logging
 import traceback
 from dataclasses import dataclass
 from typing import Optional
-from full_tailor_resume.update_user_profile import update_user_full_resume
+from src.update_user_profile import update_user_full_resume
 
 logging.basicConfig(level=logging.DEBUG)
 

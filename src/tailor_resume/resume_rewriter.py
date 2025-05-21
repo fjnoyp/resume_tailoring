@@ -1,11 +1,16 @@
-from full_tailor_resume.tailor_resume.ask_user import ask_user
+from src.tailor_resume.ask_user import ask_user
 from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
-from tools.supabase_storage_tools import get_user_files_paths, upload_file_to_bucket, read_file_from_bucket
+from src.tools.supabase_storage_tools import (
+    get_user_files_paths,
+    upload_file_to_bucket,
+    read_file_from_bucket,
+)
 import logging
 import traceback
 
 logging.basicConfig(level=logging.DEBUG)
+
 
 async def resume_rewriter(inputs: dict) -> str:
     """
@@ -33,7 +38,9 @@ async def resume_rewriter(inputs: dict) -> str:
         # Read all relevant files from Supabase
         original_resume_bytes = await read_file_from_bucket(original_resume_path) or b""
         full_resume_bytes = await read_file_from_bucket(full_resume_path) or b""
-        recruiter_feedback_bytes = await read_file_from_bucket(recruiter_feedback_path) or b""
+        recruiter_feedback_bytes = (
+            await read_file_from_bucket(recruiter_feedback_path) or b""
+        )
         job_description_bytes = await read_file_from_bucket(job_description_path) or b""
         job_strategy_bytes = await read_file_from_bucket(job_strategy_path) or b""
 
@@ -96,15 +103,18 @@ JOB_STRATEGY:
 
         # Initialize the model
         model = ChatAnthropic(
-            model_name="claude-3-5-sonnet-latest",
-            timeout=120,
-            stop=None
+            model_name="claude-3-5-sonnet-latest", timeout=120, stop=None
         )
         agent = create_react_agent(model, [ask_user])
 
-        agent_response = await agent.ainvoke({"messages": [{"role": "user", "content": message}]})
+        agent_response = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": message}]}
+        )
 
-        if isinstance(agent_response, dict) and agent_response.get("type") == "ask_user":
+        if (
+            isinstance(agent_response, dict)
+            and agent_response.get("type") == "ask_user"
+        ):
             return agent_response  # This will be picked up by the graph for interrupt
 
         logging.debug(f"[DEBUG] agent_response: {agent_response}")

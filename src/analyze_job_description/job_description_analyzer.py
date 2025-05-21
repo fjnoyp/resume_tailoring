@@ -1,20 +1,25 @@
-from tools.supabase_storage_tools import get_user_files_paths, upload_file_to_bucket, read_file_from_bucket
+from src.tools.supabase_storage_tools import (
+    get_user_files_paths,
+    upload_file_to_bucket,
+    read_file_from_bucket,
+)
 from ..main_agent import model
 import logging
 import traceback
 
 logging.basicConfig(level=logging.DEBUG)
 
+
 async def job_description_analyzer(inputs: dict) -> str:
     """
     Analyzes a job description to extract and synthesize the underlying company requirements, strategy, and recruiter psychology, producing a comprehensive markdown document.
     If job_description is not provided, it is loaded from Supabase Storage using user_id and job_id.
-    
+
     Args:
         job_description: The raw job description text to analyze (optional).
         user_id: Unique user identifier.
         job_id: Unique job identifier.
-    
+
     Returns:
         The generated Job Strategy Document (markdown content as a string).
     """
@@ -26,7 +31,9 @@ async def job_description_analyzer(inputs: dict) -> str:
         else:
             file_paths = get_user_files_paths(user_id, job_id)
             job_description_path = file_paths["job_description_path"]
-            job_description_bytes = await read_file_from_bucket(job_description_path) or b""
+            job_description_bytes = (
+                await read_file_from_bucket(job_description_path) or b""
+            )
             job_description = job_description_bytes.decode("utf-8")
 
         message = f"""

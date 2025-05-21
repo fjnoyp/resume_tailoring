@@ -3,8 +3,8 @@
         "."
     ],
     "graphs": {
-        "chat": "full_tailor_resume.main_agent:agent",
-        "full_tailor_resume": "full_tailor_resume.graph:graph"
+        "chat": "src.main_agent:agent",
+        "full_tailor_resume": "src.graph:graph"
     },
     "env": ".env"
 }
