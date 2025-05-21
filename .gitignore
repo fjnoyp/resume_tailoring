@@ -1,5 +1,29 @@
-.env
-
-samples/
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Poetry
+# poetry.lock  # Or poetry.lockb if you use older versions - typically you commit this
+# .pypoetry.cfg # Only if you have specific poetry configurations you don't want to share
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Secrets
+.env
+*.env
+
+# Other
+samples/
 .langgraph_api/
+.DS_Store

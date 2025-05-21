@@ -1,27 +1,34 @@
-[project]
-name = "full_tailor_resume"
+[tool.poetry]
+name = "resume_tailoring"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Your Name",email = "you@example.com"}
-]
-requires-python = ">=3.11"
-dependencies = [
-    "mcp (>=1.8.1,<2.0.0)",
-    "langchain-mcp-adapters (>=0.0.11,<0.0.12)",
-    "langgraph (>=0.4.3,<0.5.0)",
-    "langchain-anthropic (>=0.3.13,<0.4.0)",
-    "langchain-core (>=0.3.59,<0.4.0)",
-    "supabase (>=2.15.1,<3.0.0)",
-    "langsmith (>=0.3.42,<0.4.0)",
-    "fastapi (>=0.115.12,<0.116.0)",
-    "pydantic (>=2.11.4,<3.0.0)",
-    "sse-starlette (>=2.1.3,<3.0.0)",
-    "langchain (>=0.3.25,<0.4.0)",
-    "pdfplumber (>=0.11.6,<0.12.0)"
+authors = ["Kyle <kylcheng@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "src", from = "." }
 ]
 
+[tool.poetry.dependencies]
+python = "^3.11"
+mcp = ">=1.8.1,<2.0.0"
+langchain-mcp-adapters = ">=0.0.11,<0.0.12"
+langgraph = ">=0.4.3,<0.5.0"
+langchain-anthropic = ">=0.3.13,<0.4.0"
+langchain-core = ">=0.3.59,<0.4.0"
+supabase = ">=2.15.1,<3.0.0"
+langsmith = ">=0.3.42,<0.4.0"
+fastapi = ">=0.115.12,<0.116.0"
+pydantic = ">=2.11.4,<3.0.0"
+sse-starlette = ">=2.1.3,<3.0.0"
+langchain = ">=0.3.25,<0.4.0"
+pdfplumber = ">=0.11.6,<0.12.0"
+# Add any dev dependencies from your example if needed, e.g.:
+# langgraph-cli = "^0.1.52"
+langgraph-cli = {extras = ["inmem"], version = "^0.2.10"}
+
+[tool.poetry.group.dev.dependencies]
+langgraph-cli = "^0.2.10"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
