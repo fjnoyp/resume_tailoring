@@ -30,25 +30,34 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> dict:
         job_id = state["job_id"]
         file_paths = get_user_files_paths(user_id, job_id)
 
+        # Add metadata to config for tracing/debugging
+        config["metadata"] = {
+            **config.get("metadata", {}),
+            "user_id": user_id,
+            "job_id": job_id,
+            "node": "resume_screener"
+        }
+
         resume = state.get("original_resume")
         if not resume:
             resume_path = file_paths["original_resume_path"]
             resume_bytes = await read_file_from_bucket(resume_path) or b""
             resume = resume_bytes.decode("utf-8")
+            state["original_resume"] = resume
 
         job_description = state.get("job_description")
         if not job_description:
             job_description_path = file_paths["job_description_path"]
-            job_description_bytes = (
-                await read_file_from_bucket(job_description_path) or b""
-            )
+            job_description_bytes = await read_file_from_bucket(job_description_path) or b""
             job_description = job_description_bytes.decode("utf-8")
+            state["job_description"] = job_description
 
         job_strategy = state.get("job_strategy")
         if not job_strategy:
             job_strategy_path = file_paths["job_strategy_path"]
             job_strategy_bytes = await read_file_from_bucket(job_strategy_path) or b""
             job_strategy = job_strategy_bytes.decode("utf-8")
+            state["job_strategy"] = job_strategy
 
         message = f"""
 - You are a professional recruiter
@@ -71,10 +80,12 @@ JOB_STRATEGY:
 """
         # Generate the recruiter feedback document
         agent_response = await agent.ainvoke(
-            {"messages": [{"role": "user", "content": message}]}
+            {"messages": [{"role": "user", "content": message}]},
+            config=config
         )
         logging.debug(f"[DEBUG] agent_response: {agent_response}")
         markdown_content = agent_response["messages"][-1].content
+        state["recruiter_feedback"] = markdown_content
 
         # Upload the recruiter feedback document to the user's job directory in Supabase
         feedback_path = file_paths["recruiter_feedback_path"]
@@ -84,7 +95,7 @@ JOB_STRATEGY:
         )
 
         # Return only the fields that update the state
-        return {"recruiter_feedback": markdown_content}
+        return state
     except Exception as e:
         # Log the state for debugging purposes if an error occurs
         logging.error(f"[DEBUG] Error in resume_screener. Current state: {state}")

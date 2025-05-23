@@ -4,7 +4,8 @@
     ],
     "graphs": {
         "chat": "src.main_agent:agent",
-        "full_tailor_resume": "src.graph:graph"
+        "full_tailor_resume": "src.graph:graph",
+        "test_graph": "src.graph:workflow"
     },
     "env": ".env"
 }

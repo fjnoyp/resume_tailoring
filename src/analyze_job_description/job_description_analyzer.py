@@ -29,13 +29,23 @@ async def job_description_analyzer(state: GraphState, config: RunnableConfig) ->
         job_id = state["job_id"]
         job_description = state.get("job_description")
 
+        # Add metadata to config for tracing/debugging
+        config["metadata"] = {
+            **config.get("metadata", {}),
+            "user_id": user_id,
+            "job_id": job_id,
+            "node": "job_description_analyzer"
+        }
+
         if not job_description:
             file_paths = get_user_files_paths(user_id, job_id)
             job_description_path = file_paths["job_description_path"]
-            job_description_bytes = (
-                await read_file_from_bucket(job_description_path) or b""
-            )
+            job_description_bytes = await read_file_from_bucket(job_description_path) or b""
             job_description = job_description_bytes.decode("utf-8")
+            state["job_description"] = job_description
+
+            if not job_description:
+                raise ValueError("No job description found in state or storage")
 
         message = f"""
 - You are an expert in recruitment strategy and organizational psychology.
@@ -54,9 +64,11 @@ async def job_description_analyzer(state: GraphState, config: RunnableConfig) ->
 JOB_DESCRIPTION:
 {job_description}
 """
-        # Generate the job strategy document
-        agent_response = await model.ainvoke(message)
+        # Pass the config to model.ainvoke for proper tracing and configuration
+        agent_response = await model.ainvoke(message, config=config)
         markdown_content = agent_response.content
+        state["job_strategy"] = markdown_content
+        state["error"] = None
 
         # Upload the job strategy document to the user's job directory in Supabase
         job_strategy_path = get_user_files_paths(user_id, job_id)["job_strategy_path"]
@@ -64,7 +76,7 @@ JOB_DESCRIPTION:
         logging.debug(f"[DEBUG] Job strategy document uploaded to {job_strategy_path}")
 
         # Return only the fields that update the state
-        return {"job_strategy": markdown_content}
+        return state
     except Exception as e:
         logging.error(f"[DEBUG] Error in analyze_job_description tool: {e}")
         logging.error(traceback.format_exc())

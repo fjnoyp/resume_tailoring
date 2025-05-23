@@ -38,23 +38,68 @@ graph_builder.add_edge(START, "job_description_analyzer")
 graph_builder.add_edge("job_description_analyzer", "resume_screener")
 graph_builder.add_edge("resume_screener", "resume_rewriter")
 
-
-def is_ask_user(output):
-    if isinstance(output, dict):
-        return output.get("type") == "ask_user"
-    if hasattr(output, "type"):
-        return getattr(output, "type") == "ask_user"
-    return False
-
-
-graph_builder.add_conditional_edges(
-    "resume_rewriter",
-    lambda output: "ask_user" if is_ask_user(output) else END,
-    {
-        # TODO - add the ask_user node
-        "ask_user": END,  # or a node that handles user input
-        END: END,
-    },
-)
-
 graph = graph_builder.compile()
+
+
+
+
+# Test graph
+# simulates the real workflow with mock nodes to repeatedly test frontend side without spending tokens
+
+from typing import TypedDict, Annotated, Optional, List
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import interrupt, Command
+
+class TestGraphState(TypedDict):
+    user_id: str
+    job_id: str
+    job_strategy: Optional[str]
+    recruiter_feedback: Optional[str]
+    messages: List
+
+def mock_job_analyzer(state: TestGraphState):
+    """First node - just adds some mock data"""
+    return {
+        "job_strategy": "Mock strategy for testing"
+    }
+
+def mock_resume_screener(state: TestGraphState):
+    """Second node - adds mock feedback"""
+    return {
+        "recruiter_feedback": "Mock feedback from recruiter"
+    }
+
+def mock_resume_rewriter(state: TestGraphState):
+    """Final node - triggers an interrupt"""
+    # This simulates asking the user a question
+    count = 1
+    should_ask_user = count < 4
+    while should_ask_user:
+        answer = interrupt(f"Do you want to proceed with these changes ({count})?")
+        count += 1
+        should_ask_user = count < 4
+
+    return {
+        "messages": [
+            {
+                "content": f"User answered: {answer}",
+                "type": "ai"
+            }
+        ]
+    }
+
+"""Creates a test graph that mimics the real workflow but with mock nodes"""
+workflow = StateGraph(TestGraphState)
+
+# Add our mock nodes
+workflow.add_node("job_analyzer", mock_job_analyzer)
+workflow.add_node("resume_screener", mock_resume_screener)
+workflow.add_node("resume_rewriter", mock_resume_rewriter)
+
+# Add edges - same structure as the real graph
+workflow.add_edge(START, "job_analyzer")
+workflow.add_edge("job_analyzer", "resume_screener")
+workflow.add_edge("resume_screener", "resume_rewriter")
+workflow.add_edge("resume_rewriter", END)
+
+workflow.compile()

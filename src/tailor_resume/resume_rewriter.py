@@ -11,6 +11,7 @@ import traceback
 from src.state import GraphState
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage
+from langgraph.errors import GraphInterrupt
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -35,6 +36,14 @@ async def resume_rewriter(state: GraphState, config: RunnableConfig) -> dict:
         job_id = state["job_id"]
         messages_history = state.get("messages", [])
 
+        # Add metadata to config for tracing/debugging
+        config["metadata"] = {
+            **config.get("metadata", {}),
+            "user_id": user_id,
+            "job_id": job_id,
+            "node": "resume_rewriter"
+        }
+
         file_paths = get_user_files_paths(user_id, job_id)
         tailored_resume_path = file_paths["tailored_resume_path"]
 
@@ -45,6 +54,7 @@ async def resume_rewriter(state: GraphState, config: RunnableConfig) -> dict:
                 await read_file_from_bucket(file_paths["original_resume_path"]) or b""
             )
             original_resume = original_resume_bytes.decode("utf-8")
+            state["original_resume"] = original_resume
 
         full_resume_bytes = (
             await read_file_from_bucket(file_paths["user_full_resume_path"]) or b""
@@ -58,6 +68,7 @@ async def resume_rewriter(state: GraphState, config: RunnableConfig) -> dict:
                 or b""
             )
             recruiter_feedback = recruiter_feedback_bytes.decode("utf-8")
+            state["recruiter_feedback"] = recruiter_feedback
 
         job_description = state.get("job_description")
         if not job_description:
@@ -65,6 +76,7 @@ async def resume_rewriter(state: GraphState, config: RunnableConfig) -> dict:
                 await read_file_from_bucket(file_paths["job_description_path"]) or b""
             )
             job_description = job_description_bytes.decode("utf-8")
+            state["job_description"] = job_description
 
         job_strategy = state.get("job_strategy")
         if not job_strategy:
@@ -72,6 +84,7 @@ async def resume_rewriter(state: GraphState, config: RunnableConfig) -> dict:
                 await read_file_from_bucket(file_paths["job_strategy_path"]) or b""
             )
             job_strategy = job_strategy_bytes.decode("utf-8")
+            state["job_strategy"] = job_strategy
 
         prompt_text = f"""
 - You are a professional resume expert.
@@ -123,7 +136,6 @@ JOB_DESCRIPTION:
 JOB_STRATEGY:
 {job_strategy}
 """
-
         # Prepare messages for the agent, including history and the main prompt
         # The `messages_history` is taken from the state
         agent_messages = list(messages_history)  # Make a copy to append to
@@ -134,19 +146,12 @@ JOB_STRATEGY:
         )
         agent = create_react_agent(model, [ask_user])
 
-        agent_response_dict = await agent.ainvoke({"messages": agent_messages})
+        agent_response_dict = await agent.ainvoke(
+            {"messages": agent_messages},
+            config=config
+        )
 
-        # Check if the agent's response (which is a dictionary itself) indicates an ask_user call
-        if (
-            isinstance(agent_response_dict, dict)
-            and agent_response_dict.get("type") == "ask_user"
-        ):
-            # If ask_user is triggered, return the agent_response_dict directly.
-            # This dict will be passed to the graph's conditional edge logic.
-            # LangGraph will also merge this dict into the state.
-            return agent_response_dict
-
-        # If not asking user, extract the tailored resume from the agent's final message
+        # Extract the tailored resume from the agent's final message
         # The agent_response_dict contains a "messages" list with the conversation history.
         final_ai_message_content = ""
         if agent_response_dict.get("messages"):
@@ -163,19 +168,20 @@ JOB_STRATEGY:
 
         tailored_resume_content = final_ai_message_content
 
+        state["tailored_resume"] = tailored_resume_content
+        state["messages"] = agent_response_dict.get("messages", agent_messages)
+
         await upload_file_to_bucket(tailored_resume_path, tailored_resume_content)
         logging.debug(f"[DEBUG] Tailored resume uploaded to {tailored_resume_path}")
 
-        # Return a dictionary to update the GraphState
+        # Return the updated GraphState
         # This includes the new tailored_resume and the full message history from the agent.
-        return {
-            "tailored_resume": tailored_resume_content,
-            "messages": agent_response_dict.get(
-                "messages", agent_messages
-            ),  # Update full conversation history
-        }
+        return state
 
     except Exception as e:
+        if isinstance(e, GraphInterrupt):
+            logging.info(f"[DEBUG] Resume rewriter interrupted with question: {e}")
+            raise
         logging.error(
             f"[DEBUG] Error in resume_rewriter. Current state keys: {list(state.keys()) if isinstance(state, dict) else 'state is not a dict'}"
         )
