@@ -6,7 +6,7 @@ from src.tools.supabase_storage_tools import (
 from ..main_agent import model
 import logging
 import traceback
-from src.state import GraphState
+from src.state import GraphState, StateManager
 from langchain_core.runnables import RunnableConfig
 
 logging.basicConfig(level=logging.DEBUG)
@@ -25,27 +25,34 @@ async def job_description_analyzer(state: GraphState, config: RunnableConfig) ->
         A dictionary to update the graph state with the job_strategy.
     """
     try:
-        user_id = state["user_id"]
-        job_id = state["job_id"]
-        job_description = state.get("job_description")
+        # Use StateManager for clean access to context
+        user_id = StateManager.get_user_id(state)
+        job_id = StateManager.get_job_id(state)
+        job_description = StateManager.get_job_description(state)
 
         # Add metadata to config for tracing/debugging
         config["metadata"] = {
             **config.get("metadata", {}),
             "user_id": user_id,
             "job_id": job_id,
-            "node": "job_description_analyzer"
+            "node": "job_description_analyzer",
         }
 
+        # Load job description from storage if not in state
         if not job_description:
             file_paths = get_user_files_paths(user_id, job_id)
             job_description_path = file_paths["job_description_path"]
-            job_description_bytes = await read_file_from_bucket(job_description_path) or b""
+            job_description_bytes = (
+                await read_file_from_bucket(job_description_path) or b""
+            )
             job_description = job_description_bytes.decode("utf-8")
-            state["job_description"] = job_description
 
             if not job_description:
-                raise ValueError("No job description found in state or storage")
+                return StateManager.set_error(
+                    state,
+                    "No job description found in state or storage",
+                    {"user_id": user_id, "job_id": job_id},
+                )
 
         message = f"""
 - You are an expert in recruitment strategy and organizational psychology.
@@ -67,19 +74,30 @@ JOB_DESCRIPTION:
         # Pass the config to model.ainvoke for proper tracing and configuration
         agent_response = await model.ainvoke(message, config=config)
         markdown_content = agent_response.content
-        state["job_strategy"] = markdown_content
-        state["error"] = None
 
         # Upload the job strategy document to the user's job directory in Supabase
         job_strategy_path = get_user_files_paths(user_id, job_id)["job_strategy_path"]
         await upload_file_to_bucket(job_strategy_path, markdown_content)
         logging.debug(f"[DEBUG] Job strategy document uploaded to {job_strategy_path}")
 
-        # Return only the fields that update the state
-        return state
+        # Use StateManager for clean bulk update
+        return StateManager.bulk_update(
+            state,
+            job_description=job_description,  # Store the loaded description
+            job_strategy=markdown_content,
+        )
+
     except Exception as e:
         logging.error(f"[DEBUG] Error in analyze_job_description tool: {e}")
         logging.error(traceback.format_exc())
-        # It's better to raise the exception or return a state that indicates an error
-        # For now, returning a dict with an error message to fit the expected dict return type.
-        return {"error": f"Error in job_description_analyzer: {str(e)}"}
+
+        # Use StateManager for standardized error handling
+        return StateManager.set_error(
+            state,
+            f"Error in job_description_analyzer: {str(e)}",
+            {
+                "user_id": StateManager.get_user_id(state),
+                "job_id": StateManager.get_job_id(state),
+                "error_type": type(e).__name__,
+            },
+        )

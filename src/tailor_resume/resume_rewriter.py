@@ -8,7 +8,7 @@ from src.tools.supabase_storage_tools import (
 )
 import logging
 import traceback
-from src.state import GraphState
+from src.state import GraphState, StateManager
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage
 from langgraph.errors import GraphInterrupt
@@ -32,59 +32,56 @@ async def resume_rewriter(state: GraphState, config: RunnableConfig) -> dict:
         Otherwise, it's a dictionary to update the graph state with the tailored_resume and messages.
     """
     try:
-        user_id = state["user_id"]
-        job_id = state["job_id"]
-        messages_history = state.get("messages", [])
+        # Use StateManager for clean access to context and interaction data
+        user_id = StateManager.get_user_id(state)
+        job_id = StateManager.get_job_id(state)
+        messages_history = StateManager.get_messages(state)
 
         # Add metadata to config for tracing/debugging
         config["metadata"] = {
             **config.get("metadata", {}),
             "user_id": user_id,
             "job_id": job_id,
-            "node": "resume_rewriter"
+            "node": "resume_rewriter",
         }
 
         file_paths = get_user_files_paths(user_id, job_id)
         tailored_resume_path = file_paths["tailored_resume_path"]
 
-        # Prefer data from state if available, otherwise fetch
-        original_resume = state.get("original_resume")
+        # Load all required data from state or storage
+        original_resume = StateManager.get_original_resume(state)
         if not original_resume:
             original_resume_bytes = (
                 await read_file_from_bucket(file_paths["original_resume_path"]) or b""
             )
             original_resume = original_resume_bytes.decode("utf-8")
-            state["original_resume"] = original_resume
 
         full_resume_bytes = (
             await read_file_from_bucket(file_paths["user_full_resume_path"]) or b""
         )
         full_resume = full_resume_bytes.decode("utf-8")
 
-        recruiter_feedback = state.get("recruiter_feedback")
+        recruiter_feedback = StateManager.get_recruiter_feedback(state)
         if not recruiter_feedback:
             recruiter_feedback_bytes = (
                 await read_file_from_bucket(file_paths["recruiter_feedback_path"])
                 or b""
             )
             recruiter_feedback = recruiter_feedback_bytes.decode("utf-8")
-            state["recruiter_feedback"] = recruiter_feedback
 
-        job_description = state.get("job_description")
+        job_description = StateManager.get_job_description(state)
         if not job_description:
             job_description_bytes = (
                 await read_file_from_bucket(file_paths["job_description_path"]) or b""
             )
             job_description = job_description_bytes.decode("utf-8")
-            state["job_description"] = job_description
 
-        job_strategy = state.get("job_strategy")
+        job_strategy = StateManager.get_job_strategy(state)
         if not job_strategy:
             job_strategy_bytes = (
                 await read_file_from_bucket(file_paths["job_strategy_path"]) or b""
             )
             job_strategy = job_strategy_bytes.decode("utf-8")
-            state["job_strategy"] = job_strategy
 
         prompt_text = f"""
 - You are a professional resume expert.
@@ -147,8 +144,7 @@ JOB_STRATEGY:
         agent = create_react_agent(model, [ask_user])
 
         agent_response_dict = await agent.ainvoke(
-            {"messages": agent_messages},
-            config=config
+            {"messages": agent_messages}, config=config
         )
 
         # Extract the tailored resume from the agent's final message
@@ -168,26 +164,43 @@ JOB_STRATEGY:
 
         tailored_resume_content = final_ai_message_content
 
-        state["tailored_resume"] = tailored_resume_content
-        state["messages"] = agent_response_dict.get("messages", agent_messages)
-
+        # Upload the tailored resume to Supabase
         await upload_file_to_bucket(tailored_resume_path, tailored_resume_content)
         logging.debug(f"[DEBUG] Tailored resume uploaded to {tailored_resume_path}")
 
-        # Return the updated GraphState
-        # This includes the new tailored_resume and the full message history from the agent.
-        return state
+        # Use StateManager for clean bulk update including all loaded data
+        return StateManager.bulk_update(
+            state,
+            original_resume=original_resume,
+            recruiter_feedback=recruiter_feedback,
+            job_description=job_description,
+            job_strategy=job_strategy,
+            tailored_resume=tailored_resume_content,
+            messages=agent_response_dict.get("messages", agent_messages),
+        )
 
     except Exception as e:
         if isinstance(e, GraphInterrupt):
             logging.info(f"[DEBUG] Resume rewriter interrupted with question: {e}")
             raise
+
         logging.error(
-            f"[DEBUG] Error in resume_rewriter. Current state keys: {list(state.keys()) if isinstance(state, dict) else 'state is not a dict'}"
+            f"[DEBUG] Error in resume_rewriter. Current state context: user_id={StateManager.get_user_id(state)}, job_id={StateManager.get_job_id(state)}"
         )
         logging.error(f"[DEBUG] Error in resume_rewriter: {e}")
         logging.error(traceback.format_exc())
-        return {
-            "error": f"Error in resume_rewriter: {str(e)}",
-            "messages": state.get("messages", []),
-        }
+
+        # Use StateManager for standardized error handling, preserving messages
+        return StateManager.bulk_update(
+            state,
+            messages=StateManager.get_messages(state),
+            **StateManager.set_error(
+                state,
+                f"Error in resume_rewriter: {str(e)}",
+                {
+                    "user_id": StateManager.get_user_id(state),
+                    "job_id": StateManager.get_job_id(state),
+                    "error_type": type(e).__name__,
+                },
+            ),
+        )

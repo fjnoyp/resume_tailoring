@@ -6,7 +6,7 @@ from src.tools.supabase_storage_tools import (
 from ..main_agent import agent
 import logging
 import traceback
-from src.state import GraphState
+from src.state import GraphState, StateManager
 from langchain_core.runnables import RunnableConfig
 
 logging.basicConfig(level=logging.DEBUG)
@@ -26,8 +26,9 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> dict:
         A dictionary to update the graph state with recruiter_feedback.
     """
     try:
-        user_id = state["user_id"]
-        job_id = state["job_id"]
+        # Use StateManager for clean access to context
+        user_id = StateManager.get_user_id(state)
+        job_id = StateManager.get_job_id(state)
         file_paths = get_user_files_paths(user_id, job_id)
 
         # Add metadata to config for tracing/debugging
@@ -35,29 +36,29 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> dict:
             **config.get("metadata", {}),
             "user_id": user_id,
             "job_id": job_id,
-            "node": "resume_screener"
+            "node": "resume_screener",
         }
 
-        resume = state.get("original_resume")
+        # Load required data from state or storage
+        resume = StateManager.get_original_resume(state)
         if not resume:
             resume_path = file_paths["original_resume_path"]
             resume_bytes = await read_file_from_bucket(resume_path) or b""
             resume = resume_bytes.decode("utf-8")
-            state["original_resume"] = resume
 
-        job_description = state.get("job_description")
+        job_description = StateManager.get_job_description(state)
         if not job_description:
             job_description_path = file_paths["job_description_path"]
-            job_description_bytes = await read_file_from_bucket(job_description_path) or b""
+            job_description_bytes = (
+                await read_file_from_bucket(job_description_path) or b""
+            )
             job_description = job_description_bytes.decode("utf-8")
-            state["job_description"] = job_description
 
-        job_strategy = state.get("job_strategy")
+        job_strategy = StateManager.get_job_strategy(state)
         if not job_strategy:
             job_strategy_path = file_paths["job_strategy_path"]
             job_strategy_bytes = await read_file_from_bucket(job_strategy_path) or b""
             job_strategy = job_strategy_bytes.decode("utf-8")
-            state["job_strategy"] = job_strategy
 
         message = f"""
 - You are a professional recruiter
@@ -80,12 +81,10 @@ JOB_STRATEGY:
 """
         # Generate the recruiter feedback document
         agent_response = await agent.ainvoke(
-            {"messages": [{"role": "user", "content": message}]},
-            config=config
+            {"messages": [{"role": "user", "content": message}]}, config=config
         )
         logging.debug(f"[DEBUG] agent_response: {agent_response}")
         markdown_content = agent_response["messages"][-1].content
-        state["recruiter_feedback"] = markdown_content
 
         # Upload the recruiter feedback document to the user's job directory in Supabase
         feedback_path = file_paths["recruiter_feedback_path"]
@@ -94,11 +93,30 @@ JOB_STRATEGY:
             f"[DEBUG] Recruiter feedback document uploaded to {feedback_path}"
         )
 
-        # Return only the fields that update the state
-        return state
+        # Use StateManager for clean bulk update - store any loaded data + new feedback
+        return StateManager.bulk_update(
+            state,
+            original_resume=resume,
+            job_description=job_description,
+            job_strategy=job_strategy,
+            recruiter_feedback=markdown_content,
+        )
+
     except Exception as e:
         # Log the state for debugging purposes if an error occurs
-        logging.error(f"[DEBUG] Error in resume_screener. Current state: {state}")
+        logging.error(
+            f"[DEBUG] Error in resume_screener. Current state context: user_id={StateManager.get_user_id(state)}, job_id={StateManager.get_job_id(state)}"
+        )
         logging.error(f"[DEBUG] Error in resume_screener tool: {e}")
         logging.error(traceback.format_exc())
-        return {"error": f"Error in resume_screener: {str(e)}"}
+
+        # Use StateManager for standardized error handling
+        return StateManager.set_error(
+            state,
+            f"Error in resume_screener: {str(e)}",
+            {
+                "user_id": StateManager.get_user_id(state),
+                "job_id": StateManager.get_job_id(state),
+                "error_type": type(e).__name__,
+            },
+        )
