@@ -22,7 +22,8 @@ class InfoCollectionState(TypedDict):
         remaining_questions: Questions still to ask
 
     OUTPUT (back to main graph):
-        final_collected_info: All information collected from user
+        final_collected_info: All information collected from user (formatted)
+        updated_full_resume: Updated full resume content after incorporating new info
 
     CONTROL:
         is_complete: Whether collection is finished
@@ -40,6 +41,7 @@ class InfoCollectionState(TypedDict):
 
     # Output to main graph
     final_collected_info: Optional[str] = None  # Formatted final result
+    updated_full_resume: Optional[str] = None  # Updated full resume content
 
     # Control
     is_complete: bool = False
@@ -57,6 +59,7 @@ def create_info_collection_state(
         "collected_info": {},
         "remaining_questions": [],
         "final_collected_info": None,
+        "updated_full_resume": None,
         "is_complete": False,
         "error": None,
     }

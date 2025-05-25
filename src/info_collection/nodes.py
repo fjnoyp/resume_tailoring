@@ -12,6 +12,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.errors import GraphInterrupt
 
 from src.main_agent import model
+from src.tools.supabase_storage_tools import get_user_files_paths
+from src.info_collection.update_user_full_resume import update_user_full_resume
 from .state import InfoCollectionState
 
 logging.basicConfig(level=logging.DEBUG)
@@ -143,19 +145,20 @@ async def info_formatter(
     state: InfoCollectionState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
-    Formats collected information for return to main graph.
+    Formats collected information and updates the full resume file.
 
     Args:
         state: State with collected information
         config: LangChain runnable config
 
     Returns:
-        Final formatted information
+        Final formatted information and updated full resume content
     """
     try:
         collected_info = state["collected_info"]
+        user_id = state["user_id"]
 
-        # Format the collected information
+        # Format the collected information for immediate use
         format_prompt = f"""
 You are a professional resume expert. Format the collected user responses into a structured summary that can be used for resume tailoring.
 
@@ -176,7 +179,37 @@ Output in markdown format for easy integration into resume tailoring.
         response = await model.ainvoke(format_prompt, config=config)
         formatted_info = response.content
 
-        return {"final_collected_info": formatted_info, "is_complete": True}
+        # Update the full resume file with collected information
+        file_paths = get_user_files_paths(user_id, "")  # Empty job_id for user files
+        full_resume_path = file_paths["user_full_resume_path"]
+
+        logging.info(f"[DEBUG] Updating full resume at: {full_resume_path}")
+
+        # Use existing update_user_full_resume function
+        update_result = await update_user_full_resume(full_resume_path, formatted_info)
+
+        if update_result is None:
+            logging.warning(
+                "Failed to update full resume, but continuing with collected info"
+            )
+            updated_full_resume = None
+        else:
+            # Read the updated full resume content
+            from src.tools.supabase_storage_tools import read_file_from_bucket
+
+            updated_full_resume_bytes = (
+                await read_file_from_bucket(full_resume_path) or b""
+            )
+            updated_full_resume = updated_full_resume_bytes.decode("utf-8")
+            logging.info(
+                f"[DEBUG] Full resume updated successfully: {len(updated_full_resume)} chars"
+            )
+
+        return {
+            "final_collected_info": formatted_info,
+            "updated_full_resume": updated_full_resume,
+            "is_complete": True,
+        }
 
     except Exception as e:
         logging.error(f"Error in info_formatter: {e}")

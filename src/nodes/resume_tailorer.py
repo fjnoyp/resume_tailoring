@@ -30,13 +30,14 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
     Output: tailored_resume
 
     If missing critical information, calls info collection subgraph to gather details from user.
+    Updates main graph state with refreshed full resume content.
 
     Args:
         state: Graph state with all analysis results
         config: LangChain runnable config
 
     Returns:
-        Dictionary with tailored_resume or error state
+        Dictionary with tailored_resume and optionally updated original_resume, or error state
     """
     try:
         user_id = state["user_id"]
@@ -121,6 +122,8 @@ Output only valid JSON.
 
         # Collect additional information if needed
         additional_info = ""
+        updated_full_resume = None
+
         if not has_sufficient_info and questions_for_user:
             logging.info(
                 f"[DEBUG] Collecting additional info via subgraph: {len(questions_for_user)} questions"
@@ -136,10 +139,20 @@ Output only valid JSON.
                 subgraph_state, config=config
             )
             additional_info = collection_result.get("final_collected_info", "")
+            updated_full_resume = collection_result.get("updated_full_resume")
 
             logging.debug(
                 f"[DEBUG] Additional info collected: {len(additional_info)} chars"
             )
+            if updated_full_resume:
+                logging.debug(
+                    f"[DEBUG] Full resume updated: {len(updated_full_resume)} chars"
+                )
+
+        # Use updated full resume if available, otherwise use original
+        current_full_resume = (
+            updated_full_resume if updated_full_resume else full_resume
+        )
 
         # Generate tailored resume with all available information
         tailoring_prompt = f"""
@@ -164,7 +177,7 @@ ORIGINAL_RESUME:
 {original_resume}
 
 FULL_RESUME:
-{full_resume}
+{current_full_resume}
 
 ADDITIONAL_COLLECTED_INFO:
 {additional_info}
@@ -187,7 +200,18 @@ JOB_STRATEGY:
             f"[DEBUG] Tailored resume generated: {len(tailored_resume)} chars"
         )
 
-        return {"tailored_resume": tailored_resume}
+        # Prepare return state
+        result = {"tailored_resume": tailored_resume}
+
+        # Update main graph state with refreshed full resume if it was updated
+        if updated_full_resume:
+            # Note: We don't update original_resume since that should remain the user's base resume
+            # The updated full resume will be available for future sessions via file storage
+            logging.info("[DEBUG] Full resume was updated during info collection")
+            # Could optionally add a field to track this, but not updating original_resume
+            # to maintain clear distinction between user's base resume and enhanced full resume
+
+        return result
 
     except Exception as e:
         logging.error(f"[DEBUG] Error in resume_tailorer: {e}")
