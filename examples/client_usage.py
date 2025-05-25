@@ -2,6 +2,8 @@
 Example Client Usage
 
 Shows how to handle GraphInterrupts from the info collection subgraph.
+
+NOTE - the client must now handle responses from the Main Graph as well as conditionally handle responses from the Info Collection Subgraph.
 """
 
 import asyncio

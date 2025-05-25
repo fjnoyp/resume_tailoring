@@ -39,9 +39,6 @@ class GraphState(TypedDict):
     recruiter_feedback: Optional[str] = None  # resume_screener → resume_tailorer
     tailored_resume: Optional[str] = None  # resume_tailorer → END
 
-    # User interaction
-    messages: Annotated[List, add_messages]
-
     # Error handling
     error: Optional[str] = None
 

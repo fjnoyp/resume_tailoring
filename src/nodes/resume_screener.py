@@ -12,7 +12,7 @@ from src.tools.supabase_storage_tools import (
     get_user_files_paths,
     upload_file_to_bucket,
 )
-from src.main_agent import agent
+from src.main_agent import model
 from src.state import GraphState, set_error
 
 logging.basicConfig(level=logging.DEBUG)
@@ -78,12 +78,9 @@ STRATEGIC_ANALYSIS:
 {job_strategy}
 """
 
-        # Generate recruiter feedback
-        response = await agent.ainvoke(
-            {"messages": [{"role": "user", "content": prompt}]}, config=config
-        )
-
-        recruiter_feedback = response["messages"][-1].content
+        # Generate recruiter feedback using model instead of agent
+        response = await model.ainvoke(prompt, config=config)
+        recruiter_feedback = response.content
 
         # Save to storage
         file_paths = get_user_files_paths(user_id, job_id)
