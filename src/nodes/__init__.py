@@ -4,7 +4,7 @@ Resume Tailoring Processing Nodes
 Organized node structure with clean imports:
 
 File I/O:
-- file_loader: Centralized file loading from Supabase Storage
+- data_loader: Centralized loading of ALL files from Supabase Storage
 
 Analysis Pipeline:
 - job_analyzer: Job description analysis and strategy extraction
@@ -12,9 +12,9 @@ Analysis Pipeline:
 - resume_tailorer: Resume customization with user interaction
 """
 
-from .file_loader import file_loader
+from .data_loader import data_loader
 from .job_analyzer import job_analyzer
 from .resume_screener import resume_screener
 from .resume_tailorer import resume_tailorer
 
-__all__ = ["file_loader", "job_analyzer", "resume_screener", "resume_tailorer"]
+__all__ = ["data_loader", "job_analyzer", "resume_screener", "resume_tailorer"]

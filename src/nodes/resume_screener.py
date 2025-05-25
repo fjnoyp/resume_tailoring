@@ -2,6 +2,7 @@
 Resume Screening Node
 
 Evaluates resumes from a recruiter's perspective against job requirements.
+Pure data processing - no file I/O.
 """
 
 import logging
@@ -12,7 +13,7 @@ from src.tools.supabase_storage_tools import (
     get_user_files_paths,
     upload_file_to_bucket,
 )
-from src.main_agent import model
+from src.main_agent import agent
 from src.state import GraphState, set_error
 
 logging.basicConfig(level=logging.DEBUG)
@@ -22,7 +23,7 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> Dict[str
     """
     Screens resume from recruiter perspective against job requirements.
 
-    Input: original_resume, job_description, job_strategy
+    Input: original_resume, job_description, job_strategy (all loaded by data_loader)
     Output: recruiter_feedback (analysis and recommendations)
 
     Args:
@@ -40,12 +41,15 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> Dict[str
         job_strategy = state["job_strategy"]
 
         # Validate required inputs
-        if not original_resume:
-            return set_error("Original resume not available for screening")
-        if not job_description:
-            return set_error("Job description not available for screening")
-        if not job_strategy:
-            return set_error("Job strategy not available for screening")
+        required_fields = {
+            "original_resume": original_resume,
+            "job_description": job_description,
+            "job_strategy": job_strategy,
+        }
+
+        for field_name, field_value in required_fields.items():
+            if not field_value:
+                return set_error(f"{field_name} not available for screening")
 
         # Add metadata for tracing
         config["metadata"] = {
@@ -78,11 +82,14 @@ STRATEGIC_ANALYSIS:
 {job_strategy}
 """
 
-        # Generate recruiter feedback using model instead of agent
-        response = await model.ainvoke(prompt, config=config)
-        recruiter_feedback = response.content
+        # Generate recruiter feedback
+        response = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": prompt}]}, config=config
+        )
 
-        # Save to storage
+        recruiter_feedback = response["messages"][-1].content
+
+        # Save to storage (only file I/O operation, isolated here)
         file_paths = get_user_files_paths(user_id, job_id)
         await upload_file_to_bucket(
             file_paths["recruiter_feedback_path"], recruiter_feedback

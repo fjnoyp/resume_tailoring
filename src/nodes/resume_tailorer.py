@@ -2,6 +2,7 @@
 Resume Tailoring Node
 
 Tailors resumes to specific jobs using analysis results and user interaction.
+Pure data processing with optional info collection - no file I/O.
 """
 
 import json
@@ -12,7 +13,6 @@ from langchain_core.runnables import RunnableConfig
 from src.tools.supabase_storage_tools import (
     get_user_files_paths,
     upload_file_to_bucket,
-    read_file_from_bucket,
 )
 from src.main_agent import model
 from src.state import GraphState, set_error
@@ -26,23 +26,23 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
     """
     Tailors resume for specific job using analysis results.
 
-    Input: original_resume, job_description, job_strategy, recruiter_feedback
+    Input: original_resume, full_resume, job_description, job_strategy, recruiter_feedback (all loaded by data_loader)
     Output: tailored_resume
 
     If missing critical information, calls info collection subgraph to gather details from user.
-    Updates main graph state with refreshed full resume content.
 
     Args:
-        state: Graph state with all analysis results
+        state: Graph state with all analysis results and data loaded
         config: LangChain runnable config
 
     Returns:
-        Dictionary with tailored_resume and optionally updated original_resume, or error state
+        Dictionary with tailored_resume or error state
     """
     try:
         user_id = state["user_id"]
         job_id = state["job_id"]
         original_resume = state["original_resume"]
+        full_resume = state["full_resume"]
         job_description = state["job_description"]
         job_strategy = state["job_strategy"]
         recruiter_feedback = state["recruiter_feedback"]
@@ -50,6 +50,7 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
         # Validate required inputs
         required_fields = {
             "original_resume": original_resume,
+            "full_resume": full_resume,
             "job_description": job_description,
             "job_strategy": job_strategy,
             "recruiter_feedback": recruiter_feedback,
@@ -66,13 +67,6 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
             "job_id": job_id,
             "node": "resume_tailorer",
         }
-
-        # Load full resume for additional context
-        file_paths = get_user_files_paths(user_id, job_id)
-        full_resume_bytes = (
-            await read_file_from_bucket(file_paths["user_full_resume_path"]) or b""
-        )
-        full_resume = full_resume_bytes.decode("utf-8")
 
         # First, analyze what information might be missing
         analysis_prompt = f"""
@@ -122,16 +116,18 @@ Output only valid JSON.
 
         # Collect additional information if needed
         additional_info = ""
-        updated_full_resume = None
+        updated_full_resume = full_resume  # Start with current full resume
 
         if not has_sufficient_info and questions_for_user:
             logging.info(
                 f"[DEBUG] Collecting additional info via subgraph: {len(questions_for_user)} questions"
             )
 
-            # Create subgraph state
+            # Create subgraph state with full resume context
             subgraph_state = create_info_collection_state(
-                missing_info_requirements=analysis_response.content, user_id=user_id
+                missing_info_requirements=analysis_response.content,
+                user_id=user_id,
+                full_resume=full_resume,  # Pass full resume for context-aware questioning
             )
 
             # Call info collection subgraph
@@ -139,20 +135,17 @@ Output only valid JSON.
                 subgraph_state, config=config
             )
             additional_info = collection_result.get("final_collected_info", "")
-            updated_full_resume = collection_result.get("updated_full_resume")
+            updated_full_resume = collection_result.get(
+                "updated_full_resume", full_resume
+            )
 
             logging.debug(
                 f"[DEBUG] Additional info collected: {len(additional_info)} chars"
             )
-            if updated_full_resume:
+            if updated_full_resume != full_resume:
                 logging.debug(
                     f"[DEBUG] Full resume updated: {len(updated_full_resume)} chars"
                 )
-
-        # Use updated full resume if available, otherwise use original
-        current_full_resume = (
-            updated_full_resume if updated_full_resume else full_resume
-        )
 
         # Generate tailored resume with all available information
         tailoring_prompt = f"""
@@ -177,7 +170,7 @@ ORIGINAL_RESUME:
 {original_resume}
 
 FULL_RESUME:
-{current_full_resume}
+{updated_full_resume}
 
 ADDITIONAL_COLLECTED_INFO:
 {additional_info}
@@ -193,25 +186,15 @@ JOB_STRATEGY:
         response = await model.ainvoke(tailoring_prompt, config=config)
         tailored_resume = response.content
 
-        # Save to storage
+        # Save to storage (only file I/O operation, isolated here)
+        file_paths = get_user_files_paths(user_id, job_id)
         await upload_file_to_bucket(file_paths["tailored_resume_path"], tailored_resume)
 
         logging.debug(
             f"[DEBUG] Tailored resume generated: {len(tailored_resume)} chars"
         )
 
-        # Prepare return state
-        result = {"tailored_resume": tailored_resume}
-
-        # Update main graph state with refreshed full resume if it was updated
-        if updated_full_resume:
-            # Note: We don't update original_resume since that should remain the user's base resume
-            # The updated full resume will be available for future sessions via file storage
-            logging.info("[DEBUG] Full resume was updated during info collection")
-            # Could optionally add a field to track this, but not updating original_resume
-            # to maintain clear distinction between user's base resume and enhanced full resume
-
-        return result
+        return {"tailored_resume": tailored_resume}
 
     except Exception as e:
         logging.error(f"[DEBUG] Error in resume_tailorer: {e}")

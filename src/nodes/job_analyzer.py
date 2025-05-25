@@ -2,6 +2,7 @@
 Job Analysis Node
 
 Analyzes job descriptions to extract company strategy, requirements, and hiring psychology.
+Pure data processing - no file I/O.
 """
 
 import logging
@@ -22,7 +23,7 @@ async def job_analyzer(state: GraphState, config: RunnableConfig) -> Dict[str, A
     """
     Analyzes job description to extract company strategy and requirements.
 
-    Input: job_description (loaded by file_loader)
+    Input: job_description (loaded by data_loader)
     Output: job_strategy (strategic analysis document)
 
     Args:
@@ -70,7 +71,7 @@ JOB_DESCRIPTION:
         response = await model.ainvoke(prompt, config=config)
         job_strategy = response.content
 
-        # Save to storage
+        # Save to storage (only file I/O operation, isolated here)
         file_paths = get_user_files_paths(user_id, job_id)
         await upload_file_to_bucket(file_paths["job_strategy_path"], job_strategy)
 

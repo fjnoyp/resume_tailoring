@@ -1,15 +1,15 @@
-from langchain_core.tools.base import BaseTool
 from langchain_anthropic import ChatAnthropic
-from langgraph.prebuilt import create_react_agent
-from src.tools.supabase_storage_tools import supabase_storage_tools
+from src.tools.supabase_storage_tools import (
+    read_file_from_bucket,
+    upload_file_to_bucket,
+)
 import logging
 import traceback
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-# TODO: add as a separated "graph" in langgraph.json and call it after gathering info from "ask_user" calls
-async def update_user_full_resume(full_resume_path: str, info_to_add: str) -> BaseTool:
+async def update_user_full_resume(full_resume_path: str, info_to_add: str) -> str:
     """
     Merges new information into the full resume markdown file in Supabase Storage, creating the file if it does not exist. Only adds non-duplicate content and always uploads the full, updated markdown resume.
 
@@ -21,42 +21,62 @@ async def update_user_full_resume(full_resume_path: str, info_to_add: str) -> Ba
         A concise message explaining what was added and that the full resume file was updated or created. If tool calls fail, a concise error message.
     """
     logging.debug(
-        f"[DEBUG] update_user_full_resume tool called with full_resume_path={full_resume_path}, info_to_add={info_to_add}"
+        f"[DEBUG] update_user_full_resume called with full_resume_path={full_resume_path}, info_to_add={info_to_add}"
     )
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"""
-
-- Merge the provided INFORMATION TO ADD (markdown) into the current content of the full resume at FULL RESUME FILE PATH (also markdown) (if the file exists).
-- Only add new, non-duplicate information; do not remove or replace existing content.
-- The result must be a complete, well-structured markdown resume, using proper markdown formatting for all sections.
-- When calling the upload_file_to_bucket tool, the file_content parameter must be the full, updated markdown resume. Do not pass a summary, description, or explanation — only the actual file content.
-- If the file does not exist, create it with properly formatted markdown content.
-- **The file_content parameter for the upload must ALWAYS be the full, updated markdown resume.**
-
-- After uploading the file, respond with a concise answer explaining what was added and that you have updated/created the FULL RESUME FILE PATH.
-- If some of your tool calls fail, respond with a concise answer explaining what happened.
-
-FULL RESUME FILE PATH: {full_resume_path}
-INFORMATION TO ADD: {info_to_add}
-""",
-        }
-    ]
-
     # Initialize the model
-    model = ChatAnthropic(model_name="claude-3-5-sonnet-latest", timeout=120, stop=None)
+    model = ChatAnthropic(model_name="claude-3-5-sonnet-latest", timeout=120)
 
     try:
-        agent = create_react_agent(model, supabase_storage_tools)
-        agent_response = await agent.ainvoke({"messages": messages})
-        logging.debug(
-            "[DEBUG] Agent response in update_user_full_resume tool: %s",
-            agent_response["messages"][-1:],
+        # Read existing resume if it exists
+        existing_resume_bytes = await read_file_from_bucket(full_resume_path)
+        existing_resume = (
+            existing_resume_bytes.decode("utf-8") if existing_resume_bytes else ""
         )
-        return agent_response["messages"][-1].content
+
+        prompt = f"""
+You are a professional resume expert. Your task is to merge new information into an existing resume while maintaining proper markdown formatting.
+
+EXISTING RESUME:
+{existing_resume}
+
+INFORMATION TO ADD:
+{info_to_add}
+
+Instructions:
+1. Merge the new information into the existing resume
+2. Only add new, non-duplicate content
+3. Maintain proper markdown formatting
+4. Create a complete, well-structured resume if none exists
+5. Return ONLY the complete updated resume content, no explanations
+
+Return the complete updated resume content in markdown format.
+"""
+
+        # Get updated resume content from model
+        response = await model.ainvoke(prompt)
+        updated_resume = response.content
+
+        # Upload the updated resume
+        await upload_file_to_bucket(full_resume_path, updated_resume)
+
+        # Generate summary of changes
+        summary_prompt = f"""
+Summarize what new information was added to the resume in one concise sentence.
+Focus only on what was added, not the full content.
+
+EXISTING RESUME:
+{existing_resume}
+
+UPDATED RESUME:
+{updated_resume}
+"""
+        summary_response = await model.ainvoke(summary_prompt)
+        summary = summary_response.content
+
+        return f"{summary} Full resume updated at {full_resume_path}"
+
     except Exception as e:
-        logging.error(f"[DEBUG] Error in update_user_full_resume tool: {e}")
+        logging.error(f"[DEBUG] Error in update_user_full_resume: {e}")
         logging.error(traceback.format_exc())
         return None

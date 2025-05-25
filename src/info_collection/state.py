@@ -15,6 +15,7 @@ class InfoCollectionState(TypedDict):
     INPUT (from main graph):
         missing_info_requirements: What information needs to be collected
         user_id: Session user identifier
+        full_resume: Current full resume content for context
 
     CONVERSATION MANAGEMENT:
         messages: Conversation history with user
@@ -33,6 +34,7 @@ class InfoCollectionState(TypedDict):
     # Input from main graph
     missing_info_requirements: str  # JSON string with missing info analysis
     user_id: str
+    full_resume: str  # Current full resume for context
 
     # Conversation management
     messages: Annotated[List, add_messages]
@@ -49,12 +51,13 @@ class InfoCollectionState(TypedDict):
 
 
 def create_info_collection_state(
-    missing_info_requirements: str, user_id: str
+    missing_info_requirements: str, user_id: str, full_resume: str = ""
 ) -> InfoCollectionState:
     """Create initial state for info collection subgraph"""
     return {
         "missing_info_requirements": missing_info_requirements,
         "user_id": user_id,
+        "full_resume": full_resume,
         "messages": [],
         "collected_info": {},
         "remaining_questions": [],
