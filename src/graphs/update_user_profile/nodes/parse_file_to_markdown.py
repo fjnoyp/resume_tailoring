@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.tools.supabase_storage_tools import read_file_from_bucket, get_file_paths
+from src.tools.state_storage_manager import StateStorageManager
 from src.tools.parse_pdf_tool import parse_pdf
 from src.llm_config import model
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
@@ -51,18 +51,16 @@ async def file_parser(
             "graph": "update_user_profile",
         }
 
-        # Get the base path structure
-        file_paths = get_file_paths(user_id, "")  # Empty job_id for user files
-
-        # Read all files content
+        # Read all files content using StateStorageManager
         all_content = []
         for file_name in file_names:
-            # Construct file path for user's additional files
-            file_path = f"{user_id}/{file_name}"
-            file_content_bytes = await read_file_from_bucket(file_path)
+            # Read file bytes for potential PDF processing
+            file_content_bytes = await StateStorageManager.read_file_bytes(
+                user_id, file_name
+            )
 
             if not file_content_bytes:
-                logging.warning(f"File not found: {file_path}")
+                logging.warning(f"File not found: {file_name}")
                 continue
 
             # Handle PDF files differently

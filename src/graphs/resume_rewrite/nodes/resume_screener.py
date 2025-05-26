@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.llm_config import agent
+from src.llm_config import model
 from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
 
@@ -79,12 +79,9 @@ STRATEGIC_ANALYSIS:
 {job_strategy}
 """
 
-        # Generate recruiter feedback
-        response = await agent.ainvoke(
-            {"messages": [{"role": "user", "content": prompt}]}, config=config
-        )
-
-        recruiter_feedback = response["messages"][-1].content
+        # Generate recruiter feedback using simple model call
+        response = await model.ainvoke(prompt, config=config)
+        recruiter_feedback = response.content
 
         # Save to storage using StateStorageManager
         await save_processing_result(

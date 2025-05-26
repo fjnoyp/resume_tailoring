@@ -7,7 +7,8 @@ import asyncio
 from langsmith import Client
 from src.output_grading.cover_letter_evaluator import cover_letter_evaluator
 from src.output_grading.resume_tailoring_evaluator import resume_tailoring_evaluator
-from src.tools.supabase_storage_tools import get_file_paths, read_file_from_bucket
+from src.tools.state_storage_manager import StateStorageManager
+from src.tools.file_path_manager import get_file_paths
 import argparse
 
 client = Client()
@@ -21,14 +22,14 @@ async def target(inputs: dict) -> dict:
     # Get canonical file paths for this user/job
     file_paths = get_file_paths(user_id, job_id)
 
-    # Read files from Supabase
-    tailored_resume_bytes = await read_file_from_bucket(file_paths.tailored_resume_path)
-    cover_letter_bytes = await read_file_from_bucket(file_paths.cover_letter_path)
-
+    # Read files using StateStorageManager
     tailored_resume = (
-        tailored_resume_bytes.decode("utf-8") if tailored_resume_bytes else ""
+        await StateStorageManager._load_file_content(file_paths.tailored_resume_path)
+        or ""
     )
-    cover_letter = cover_letter_bytes.decode("utf-8") if cover_letter_bytes else ""
+    cover_letter = (
+        await StateStorageManager._load_file_content(file_paths.cover_letter_path) or ""
+    )
 
     return {"tailored_resume": tailored_resume, "cover_letter": cover_letter}
 

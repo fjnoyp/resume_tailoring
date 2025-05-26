@@ -2,6 +2,103 @@
 
 This folder contains helper tools that support the core functionality of the Resume Tailoring platform. These tools provide essential services such as file parsing, storage management, and integration with external systems. They are designed to be modular and reusable across different parts of the codebase, including the backend AI system, evaluation scripts, and other modules.
 
+## Storage Architecture Overview
+
+This folder contains the storage management system for the Resume Tailoring platform. The architecture is designed with clear separation of concerns and controlled access patterns.
+
+### Architecture Components
+
+#### 1. **StateStorageManager** (`state_storage_manager.py`) - **PRIMARY INTERFACE**
+- **Main public interface** for all storage operations
+- Provides high-level, state-aware operations
+- Handles loading/saving of state fields with proper validation
+- **All nodes should use this interface**
+
+#### 2. **File Path Manager** (`file_path_manager.py`) - **PATH UTILITIES**
+- Centralized path management for all user and job files
+- Type-safe path generation with `UserFilePaths` class
+- Prevents magic strings and path construction errors
+
+#### 3. **Private Storage Implementation** (`_supabase_storage_tools.py`) - **INTERNAL ONLY**
+- Low-level Supabase storage operations
+- **Private module** (underscore prefix) - should NOT be imported directly
+- Only used internally by StateStorageManager
+
+#### 4. **Storage Tools** (`storage_tools.py`) - **AGENT TOOLS**
+- LangChain-compatible tools for agents that need storage access
+- Uses StateStorageManager as backend
+- For use in agent workflows that require file operations
+
+### Usage Patterns
+
+#### ✅ **CORRECT - Use StateStorageManager**
+```python
+from src.tools.state_storage_manager import StateStorageManager, load_resume_tailoring_data
+
+# Load state data
+result = await load_resume_tailoring_data(user_id, job_id)
+if result.success:
+    job_description = result.loaded_fields["job_description"]
+
+# Save processing results
+await StateStorageManager.save_state_field(user_id, job_id, "tailored_resume", content)
+
+# Read custom files
+file_content = await StateStorageManager.read_file(user_id, "resume.pdf")
+```
+
+#### ✅ **CORRECT - Use File Path Manager for paths**
+```python
+from src.tools.file_path_manager import get_file_paths
+
+file_paths = get_file_paths(user_id, job_id)
+resume_path = file_paths.tailored_resume_path
+```
+
+#### ✅ **CORRECT - Use Storage Tools for agents**
+```python
+from src.tools.storage_tools import storage_tools
+from langgraph.prebuilt import create_react_agent
+
+agent = create_react_agent(model, storage_tools)
+```
+
+#### ❌ **INCORRECT - Direct storage access**
+```python
+# DON'T DO THIS
+from src.tools._supabase_storage_tools import _read_file_from_bucket
+```
+
+### Key Benefits
+
+1. **Single Source of Truth**: StateStorageManager is the only public interface
+2. **Type Safety**: File paths are managed centrally with type checking
+3. **Maintainability**: Changes to storage implementation only affect private modules
+4. **Consistency**: All nodes use the same interface patterns
+5. **Error Handling**: Centralized error handling and logging
+
+### Migration Guide
+
+If you have existing code using the old `supabase_storage_tools`:
+
+**Old:**
+```python
+from src.tools.supabase_storage_tools import read_file_from_bucket, get_file_paths
+
+file_paths = get_file_paths(user_id, job_id)
+content_bytes = await read_file_from_bucket(file_paths.resume_path)
+content = content_bytes.decode("utf-8") if content_bytes else ""
+```
+
+**New:**
+```python
+from src.tools.state_storage_manager import StateStorageManager
+from src.tools.file_path_manager import get_file_paths
+
+file_paths = get_file_paths(user_id, job_id)
+content = await StateStorageManager._load_file_content(file_paths.resume_path) or ""
+```
+
 ## Tools Provided
 
 - **supabase_storage_tools.py**
