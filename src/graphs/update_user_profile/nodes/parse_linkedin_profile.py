@@ -10,7 +10,7 @@ from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
 from src.tools.mcp_agent import invoke_mcp_agent, linkedin_server_params
-from src.update_user_profile.state import UpdateUserProfileState, set_error
+from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
 
 logging.basicConfig(level=logging.DEBUG)
 

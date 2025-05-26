@@ -10,11 +10,13 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.main_agent import model
-from src.state import GraphState, set_error
+from src.llm_config import model
+from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
-from src.info_collection import info_collection_graph
-from src.info_collection.state import create_info_collection_state
+from src.graphs.info_collection.graph import info_collection_graph
+from src.graphs.info_collection.state import (
+    create_info_collection_state,
+)
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -7,6 +7,7 @@ class GraphState(TypedDict):
     Simplified flat state with clear field ownership and data flow.
 
     CONTEXT (Immutable):
+        graph_type: Identifies this as "resume_rewrite" state
         user_id: Session user identifier
         job_id: Session job identifier
 
@@ -28,6 +29,7 @@ class GraphState(TypedDict):
     """
 
     # Context (set once, never changes)
+    graph_type: str  # Always "resume_rewrite" for this state
     user_id: str
     job_id: str
 
@@ -48,6 +50,7 @@ class GraphState(TypedDict):
 def create_initial_state(user_id: str, job_id: str) -> GraphState:
     """Create initial state with required context"""
     return {
+        "graph_type": "resume_rewrite",
         "user_id": user_id,
         "job_id": job_id,
         "job_description": None,

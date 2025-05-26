@@ -9,8 +9,8 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.main_agent import agent
-from src.state import GraphState, set_error
+from src.llm_config import agent
+from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
 
 logging.basicConfig(level=logging.DEBUG)

@@ -10,10 +10,10 @@ Uses StateStorageManager for unified state management.
 """
 
 from langgraph.graph import StateGraph, START, END
-from src.update_user_profile.nodes.update_user_full_resume import resume_updater
-from src.update_user_profile.nodes.parse_linkedin_profile import linkedin_parser
-from src.update_user_profile.nodes.parse_file_to_markdown import file_parser
-from src.update_user_profile.state import UpdateUserProfileState, set_error
+from src.graphs.update_user_profile.nodes.update_user_full_resume import resume_updater
+from src.graphs.update_user_profile.nodes.parse_linkedin_profile import linkedin_parser
+from src.graphs.update_user_profile.nodes.parse_file_to_markdown import file_parser
+from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
 from src.tools.state_storage_manager import load_user_profile_data
 
 
@@ -46,7 +46,7 @@ async def initialize_profile_state(state: UpdateUserProfileState, config) -> dic
         return set_error(f"Profile state initialization failed: {str(e)}")
 
 
-def create_user_profile_update_graph() -> StateGraph:
+def create_update_user_profile_graph() -> StateGraph:
     """
     Creates the user profile update graph with unified state management.
 
@@ -111,4 +111,4 @@ def create_user_profile_update_graph() -> StateGraph:
 
 
 # Create the user profile update graph instance
-user_profile_update_graph = create_user_profile_update_graph()
+update_user_profile_graph = create_update_user_profile_graph()

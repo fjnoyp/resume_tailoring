@@ -6,6 +6,7 @@ class UpdateUserProfileState(TypedDict):
     Simplified flat state for user profile updates with clear field ownership.
 
     CONTEXT (Immutable):
+        graph_type: Identifies this as "update_user_profile" state
         user_id: Session user identifier
 
     CONTROL FLOW:
@@ -27,6 +28,7 @@ class UpdateUserProfileState(TypedDict):
     """
 
     # Context (set once, never changes)
+    graph_type: str  # Always "update_user_profile" for this state
     user_id: str
 
     # Control flow
@@ -49,6 +51,7 @@ def create_update_profile_state(
 ) -> UpdateUserProfileState:
     """Create initial state for user profile update"""
     return {
+        "graph_type": "update_user_profile",
         "user_id": user_id,
         "operation_mode": operation_mode,
         "input_data": input_data,

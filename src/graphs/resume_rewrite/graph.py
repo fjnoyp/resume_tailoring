@@ -8,8 +8,12 @@ Uses StateStorageManager for cohesive state loading/saving operations.
 """
 
 from langgraph.graph import StateGraph, START, END
-from src.state import GraphState, set_error
-from src.nodes import job_analyzer, resume_screener, resume_tailorer
+from src.graphs.resume_rewrite.state import GraphState, set_error
+from src.graphs.resume_rewrite.nodes import (
+    job_analyzer,
+    resume_screener,
+    resume_tailorer,
+)
 from src.tools.state_storage_manager import load_resume_tailoring_data
 
 

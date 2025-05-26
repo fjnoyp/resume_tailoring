@@ -11,9 +11,9 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.errors import GraphInterrupt
 
-from src.main_agent import model
-from src.tools.supabase_storage_tools import get_file_paths
-from src.info_collection.update_user_full_resume import update_user_full_resume
+from src.llm_config import model
+from src.graphs.update_user_profile.graph import update_user_profile_graph
+from src.graphs.update_user_profile.state import create_update_profile_state
 from .state import InfoCollectionState
 
 logging.basicConfig(level=logging.DEBUG)
@@ -145,7 +145,7 @@ async def info_formatter(
     state: InfoCollectionState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
-    Formats collected information and updates the full resume file.
+    Formats collected information and updates the full resume using the user profile update subgraph.
 
     Args:
         state: State with collected information and current full_resume
@@ -180,28 +180,30 @@ Output in markdown format for easy integration into resume tailoring.
         response = await model.ainvoke(format_prompt, config=config)
         formatted_info = response.content
 
-        # Update the full resume file with collected information
-        file_paths = get_file_paths(user_id, "")  # Empty job_id for user files
-        full_resume_path = file_paths.user_full_resume_path
+        # Update the full resume using the user profile update subgraph
+        logging.info(f"[DEBUG] Updating full resume using user profile update subgraph")
 
-        logging.info(f"[DEBUG] Updating full resume at: {full_resume_path}")
-
-        # Use update_user_full_resume function with current content
-        update_result = await update_user_full_resume(
-            full_resume_path, current_full_resume, formatted_info
+        # Create state for the user profile update subgraph
+        update_state = create_update_profile_state(
+            user_id=user_id, operation_mode="update_resume", input_data=formatted_info
         )
 
-        if update_result is None:
+        # Call the user profile update subgraph
+        update_result = await update_user_profile_graph.ainvoke(
+            update_state, config=config
+        )
+
+        if update_result.get("error"):
             logging.warning(
-                "Failed to update full resume, but continuing with collected info"
+                f"Failed to update full resume via subgraph: {update_result['error']}, continuing with collected info"
             )
             updated_full_resume = current_full_resume  # Use current if update failed
         else:
-            # Extract updated content from the returned tuple
-            summary_message, updated_full_resume = update_result
-            logging.info(f"[DEBUG] {summary_message}")
+            updated_full_resume = update_result.get(
+                "updated_full_resume", current_full_resume
+            )
             logging.info(
-                f"[DEBUG] Full resume updated successfully: {len(updated_full_resume)} chars"
+                f"[DEBUG] Full resume updated successfully via subgraph: {len(updated_full_resume)} chars"
             )
 
         return {

@@ -12,7 +12,8 @@ class InfoCollectionState(TypedDict):
     """
     State for info collection subgraph focused on user conversations.
 
-    INPUT (from main graph):
+    CONTEXT (Immutable):
+        graph_type: Identifies this as "info_collection" state
         missing_info_requirements: What information needs to be collected
         user_id: Session user identifier
         full_resume: Current full resume content for context
@@ -31,7 +32,8 @@ class InfoCollectionState(TypedDict):
         error: Error message if collection fails
     """
 
-    # Input from main graph
+    # Context (set once, never changes)
+    graph_type: str  # Always "info_collection" for this state
     missing_info_requirements: str  # JSON string with missing info analysis
     user_id: str
     full_resume: str  # Current full resume for context
@@ -55,6 +57,7 @@ def create_info_collection_state(
 ) -> InfoCollectionState:
     """Create initial state for info collection subgraph"""
     return {
+        "graph_type": "info_collection",
         "missing_info_requirements": missing_info_requirements,
         "user_id": user_id,
         "full_resume": full_resume,

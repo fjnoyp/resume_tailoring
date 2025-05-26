@@ -3,9 +3,9 @@
         "."
     ],
     "graphs": {
-        "test_graph": "src.test_graph:test_graph",
-        "full_tailor_resume": "src.graph:graph",
-        "update_full_resume": "src.update_user_profile.graph:user_full_resume_graph"
+        "test_graph": "src.graphs.test_graph:test_graph",
+        "resume_rewrite": "src.graphs.resume_rewrite.graph:graph",
+        "update_user_profile": "src.graphs.update_user_profile.graph:update_user_profile_graph"
     },
     "env": ".env"
 }

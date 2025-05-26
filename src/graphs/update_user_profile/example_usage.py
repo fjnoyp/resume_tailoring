@@ -8,8 +8,8 @@ Demonstrates the three operation modes:
 """
 
 import asyncio
-from src.update_user_profile.graph import user_profile_update_graph
-from src.update_user_profile.state import create_update_profile_state
+from src.graphs.update_user_profile.graph import update_user_profile_graph
+from src.graphs.update_user_profile.state import create_update_profile_state
 
 
 async def example_direct_update():
@@ -35,7 +35,7 @@ async def example_direct_update():
     )
 
     try:
-        result = await user_profile_update_graph.ainvoke(state)
+        result = await update_user_profile_graph.ainvoke(state)
         print(f"✅ Update completed successfully")
         print(
             f"Updated resume length: {len(result.get('updated_full_resume', ''))} chars"
@@ -57,7 +57,7 @@ async def example_linkedin_parsing():
     )
 
     try:
-        result = await user_profile_update_graph.ainvoke(state)
+        result = await update_user_profile_graph.ainvoke(state)
         print(f"✅ LinkedIn parsing completed successfully")
         print(
             f"Updated resume length: {len(result.get('updated_full_resume', ''))} chars"
@@ -79,7 +79,7 @@ async def example_file_parsing():
     )
 
     try:
-        result = await user_profile_update_graph.ainvoke(state)
+        result = await update_user_profile_graph.ainvoke(state)
         print(f"✅ File parsing completed successfully")
         print(
             f"Updated resume length: {len(result.get('updated_full_resume', ''))} chars"

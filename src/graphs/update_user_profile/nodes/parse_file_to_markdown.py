@@ -11,8 +11,8 @@ from langchain_core.runnables import RunnableConfig
 
 from src.tools.supabase_storage_tools import read_file_from_bucket, get_file_paths
 from src.tools.parse_pdf_tool import parse_pdf
-from src.main_agent import model
-from src.update_user_profile.state import UpdateUserProfileState, set_error
+from src.llm_config import model
+from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
 
 logging.basicConfig(level=logging.DEBUG)
 
