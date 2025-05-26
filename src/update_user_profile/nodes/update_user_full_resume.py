@@ -1,53 +1,65 @@
-from src.update_user_profile.state import FullResumeGraphState
-from langchain_core.runnables import RunnableConfig
-from src.tools.supabase_storage_tools import get_user_files_paths, read_file_from_bucket, upload_file_to_bucket
-from ...main_agent import agent
+"""
+Resume Update Node
+
+Merges new information into existing resume content.
+Pure data processing - no file I/O.
+"""
+
 import logging
-import traceback
+from typing import Dict, Any
+from langchain_core.runnables import RunnableConfig
+
+from src.tools.supabase_storage_tools import (
+    get_file_paths,
+    upload_file_to_bucket,
+)
+from src.main_agent import model
+from src.update_user_profile.state import UpdateUserProfileState, set_error
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-# TODO: add as a separated "graph" in langgraph.json and call it after gathering info from "ask_user" calls
-async def update_user_full_resume(state: FullResumeGraphState, config: RunnableConfig) -> dict:
+async def resume_updater(
+    state: UpdateUserProfileState, config: RunnableConfig
+) -> Dict[str, Any]:
     """
-    Merges new information into the full resume markdown file in Supabase Storage, creating the file if it does not exist. Only adds non-duplicate content.
+    Merges new information into existing resume content.
 
-    Input: input_data (with the new information)
-    Output: full_resume (with the updated content)
+    Input: input_data (new information), current_full_resume (loaded by data_loader)
+    Output: updated_full_resume
 
     Args:
-        state: The current graph state.
-        config: The LangChain runnable config.
+        state: Graph state with input data and current resume
+        config: LangChain runnable config
 
     Returns:
-        A dictionary to update the graph state with the full resume.
+        Dictionary with updated_full_resume or error state
     """
     try:
         user_id = state["user_id"]
         input_data = state["input_data"]
-        full_resume = state.get("full_resume", "")
+        current_full_resume = state["current_full_resume"] or ""
 
-        # Add metadata to config for tracing/debugging
+        # Handle parsed content if available (from LinkedIn/file parsing)
+        content_to_merge = state.get("parsed_content", input_data)
+
+        if not content_to_merge:
+            return set_error("No content available to merge into resume")
+
+        # Add metadata for tracing
         config["metadata"] = {
             **config.get("metadata", {}),
             "user_id": user_id,
-            "node": "update_user_full_resume"
+            "node": "resume_updater",
+            "graph": "update_user_profile",
         }
 
-        if not full_resume:
-            file_paths = get_user_files_paths(user_id)
-            full_resume_path = file_paths["user_full_resume_path"]
-            full_resume_bytes = await read_file_from_bucket(file_paths["user_full_resume_path"]) or b""
-            full_resume = full_resume_bytes.decode("utf-8")
+        prompt = f"""
+You are a professional resume writer tasked with updating a user's comprehensive resume.
 
-        messages = [
-            {
-                "role": "user",
-                "content": f"""
-- You are a professional resume writer tasked with updating a user's comprehensive resume
-- Your goal is to merge new information into an existing resume while maintaining professional formatting and avoiding duplicates
-- Follow these strict guidelines:
+Your goal is to merge new information into an existing resume while maintaining professional formatting and avoiding duplicates.
+
+Follow these strict guidelines:
 
 1. STRUCTURE:
    - Maintain proper markdown formatting throughout the document
@@ -69,40 +81,29 @@ async def update_user_full_resume(state: FullResumeGraphState, config: RunnableC
    - Remove any redundant or repetitive information
 
 EXISTING RESUME:
-{full_resume}
+{current_full_resume}
 
 NEW INFORMATION TO MERGE:
-{input_data}
+{content_to_merge}
 
 Return the complete, updated markdown resume with all content properly merged and formatted.
 IMPORTANT: Return ONLY the markdown content. Do not include any explanations, comments, or other text before or after the markdown content.
-""",
-            }
-        ]
+"""
 
-        agent_response = await agent.ainvoke(
-            {"messages": messages},
-            config=config
-        )
-        logging.debug(
-            "[DEBUG] Agent response in update_user_full_resume tool: %s",
-            agent_response["messages"][-1:],
-        )
+        # Generate updated resume
+        response = await model.ainvoke(prompt, config=config)
+        updated_full_resume = response.content
 
-        # Extract the updated markdown content from agent response
-        updated_content = agent_response["messages"][-1].content
-        state["full_resume"] = updated_content
-
-        # Upload the updated full resume to Supabase
-        await upload_file_to_bucket(full_resume_path, updated_content)
-        logging.debug(
-            f"[DEBUG] Updated full resume uploaded to {full_resume_path}"
+        # Save to storage (only file I/O operation, isolated here)
+        file_paths = get_file_paths(user_id, "")  # Empty job_id for user files
+        await upload_file_to_bucket(
+            file_paths.user_full_resume_path, updated_full_resume
         )
 
-        # Return the updated state
-        return {"full_resume": updated_content, "input_data": ""}
+        logging.debug(f"[DEBUG] Resume updated: {len(updated_full_resume)} chars")
+
+        return {"updated_full_resume": updated_full_resume}
+
     except Exception as e:
-        logging.error(f"[DEBUG] Error in update_user_full_resume. Current state: {state}")
-        logging.error(f"[DEBUG] Error in update_user_full_resume tool: {e}")
-        logging.error(traceback.format_exc())
-        return {"error": f"Error in update_user_full_resume: {str(e)}"}
+        logging.error(f"[DEBUG] Error in resume_updater: {e}")
+        return set_error(f"Resume update failed: {str(e)}")

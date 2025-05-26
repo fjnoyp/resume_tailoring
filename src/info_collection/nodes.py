@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.errors import GraphInterrupt
 
 from src.main_agent import model
-from src.tools.supabase_storage_tools import get_user_files_paths
+from src.tools.supabase_storage_tools import get_file_paths
 from src.info_collection.update_user_full_resume import update_user_full_resume
 from .state import InfoCollectionState
 
@@ -148,7 +148,7 @@ async def info_formatter(
     Formats collected information and updates the full resume file.
 
     Args:
-        state: State with collected information
+        state: State with collected information and current full_resume
         config: LangChain runnable config
 
     Returns:
@@ -157,6 +157,7 @@ async def info_formatter(
     try:
         collected_info = state["collected_info"]
         user_id = state["user_id"]
+        current_full_resume = state["full_resume"]
 
         # Format the collected information for immediate use
         format_prompt = f"""
@@ -180,27 +181,25 @@ Output in markdown format for easy integration into resume tailoring.
         formatted_info = response.content
 
         # Update the full resume file with collected information
-        file_paths = get_user_files_paths(user_id, "")  # Empty job_id for user files
-        full_resume_path = file_paths["user_full_resume_path"]
+        file_paths = get_file_paths(user_id, "")  # Empty job_id for user files
+        full_resume_path = file_paths.user_full_resume_path
 
         logging.info(f"[DEBUG] Updating full resume at: {full_resume_path}")
 
-        # Use existing update_user_full_resume function
-        update_result = await update_user_full_resume(full_resume_path, formatted_info)
+        # Use update_user_full_resume function with current content
+        update_result = await update_user_full_resume(
+            full_resume_path, current_full_resume, formatted_info
+        )
 
         if update_result is None:
             logging.warning(
                 "Failed to update full resume, but continuing with collected info"
             )
-            updated_full_resume = None
+            updated_full_resume = current_full_resume  # Use current if update failed
         else:
-            # Read the updated full resume content
-            from src.tools.supabase_storage_tools import read_file_from_bucket
-
-            updated_full_resume_bytes = (
-                await read_file_from_bucket(full_resume_path) or b""
-            )
-            updated_full_resume = updated_full_resume_bytes.decode("utf-8")
+            # Extract updated content from the returned tuple
+            summary_message, updated_full_resume = update_result
+            logging.info(f"[DEBUG] {summary_message}")
             logging.info(
                 f"[DEBUG] Full resume updated successfully: {len(updated_full_resume)} chars"
             )

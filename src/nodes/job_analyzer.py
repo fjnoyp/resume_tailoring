@@ -10,7 +10,7 @@ from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
 from src.tools.supabase_storage_tools import (
-    get_user_files_paths,
+    get_file_paths,
     upload_file_to_bucket,
 )
 from src.main_agent import model
@@ -72,8 +72,8 @@ JOB_DESCRIPTION:
         job_strategy = response.content
 
         # Save to storage (only file I/O operation, isolated here)
-        file_paths = get_user_files_paths(user_id, job_id)
-        await upload_file_to_bucket(file_paths["job_strategy_path"], job_strategy)
+        file_paths = get_file_paths(user_id, job_id)
+        await upload_file_to_bucket(file_paths.job_strategy_path, job_strategy)
 
         logging.debug(f"[DEBUG] Job strategy generated: {len(job_strategy)} chars")
 

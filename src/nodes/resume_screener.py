@@ -10,7 +10,7 @@ from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
 from src.tools.supabase_storage_tools import (
-    get_user_files_paths,
+    get_file_paths,
     upload_file_to_bucket,
 )
 from src.main_agent import agent
@@ -90,9 +90,9 @@ STRATEGIC_ANALYSIS:
         recruiter_feedback = response["messages"][-1].content
 
         # Save to storage (only file I/O operation, isolated here)
-        file_paths = get_user_files_paths(user_id, job_id)
+        file_paths = get_file_paths(user_id, job_id)
         await upload_file_to_bucket(
-            file_paths["recruiter_feedback_path"], recruiter_feedback
+            file_paths.recruiter_feedback_path, recruiter_feedback
         )
 
         logging.debug(

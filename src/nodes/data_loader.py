@@ -10,7 +10,7 @@ from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
 from src.tools.supabase_storage_tools import (
-    get_user_files_paths,
+    get_file_paths,
     read_file_from_bucket,
 )
 from src.state import GraphState, set_error
@@ -46,45 +46,40 @@ async def data_loader(state: GraphState, config: RunnableConfig) -> Dict[str, An
             "node": "data_loader",
         }
 
-        file_paths = get_user_files_paths(user_id, job_id)
+        file_paths = get_file_paths(user_id, job_id)
 
         # Load job description
         job_description = None
-        if file_paths.get("job_description_path"):
-            job_description_bytes = await read_file_from_bucket(
-                file_paths["job_description_path"]
+        job_description_bytes = await read_file_from_bucket(
+            file_paths.job_description_path
+        )
+        if job_description_bytes:
+            job_description = job_description_bytes.decode("utf-8")
+            logging.debug(
+                f"[DEBUG] Job description loaded: {len(job_description)} chars"
             )
-            if job_description_bytes:
-                job_description = job_description_bytes.decode("utf-8")
-                logging.debug(
-                    f"[DEBUG] Job description loaded: {len(job_description)} chars"
-                )
 
         # Load original resume
         original_resume = None
-        if file_paths.get("original_resume_path"):
-            resume_bytes = await read_file_from_bucket(
-                file_paths["original_resume_path"]
+        resume_bytes = await read_file_from_bucket(file_paths.original_resume_path)
+        if resume_bytes:
+            original_resume = resume_bytes.decode("utf-8")
+            logging.debug(
+                f"[DEBUG] Original resume loaded: {len(original_resume)} chars"
             )
-            if resume_bytes:
-                original_resume = resume_bytes.decode("utf-8")
-                logging.debug(
-                    f"[DEBUG] Original resume loaded: {len(original_resume)} chars"
-                )
 
         # Load full resume
         full_resume = None
-        if file_paths.get("user_full_resume_path"):
-            full_resume_bytes = await read_file_from_bucket(
-                file_paths["user_full_resume_path"]
-            )
-            if full_resume_bytes:
-                full_resume = full_resume_bytes.decode("utf-8")
-                logging.debug(f"[DEBUG] Full resume loaded: {len(full_resume)} chars")
-            else:
-                # Full resume might not exist yet, that's okay
-                full_resume = ""
-                logging.debug("[DEBUG] Full resume not found, using empty string")
+        full_resume_bytes = await read_file_from_bucket(
+            file_paths.user_full_resume_path
+        )
+        if full_resume_bytes:
+            full_resume = full_resume_bytes.decode("utf-8")
+            logging.debug(f"[DEBUG] Full resume loaded: {len(full_resume)} chars")
+        else:
+            # Full resume might not exist yet, that's okay
+            full_resume = ""
+            logging.debug("[DEBUG] Full resume not found, using empty string")
 
         # Validate required files are present
         if not job_description:

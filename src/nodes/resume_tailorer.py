@@ -11,7 +11,7 @@ from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
 from src.tools.supabase_storage_tools import (
-    get_user_files_paths,
+    get_file_paths,
     upload_file_to_bucket,
 )
 from src.main_agent import model
@@ -187,8 +187,8 @@ JOB_STRATEGY:
         tailored_resume = response.content
 
         # Save to storage (only file I/O operation, isolated here)
-        file_paths = get_user_files_paths(user_id, job_id)
-        await upload_file_to_bucket(file_paths["tailored_resume_path"], tailored_resume)
+        file_paths = get_file_paths(user_id, job_id)
+        await upload_file_to_bucket(file_paths.tailored_resume_path, tailored_resume)
 
         logging.debug(
             f"[DEBUG] Tailored resume generated: {len(tailored_resume)} chars"

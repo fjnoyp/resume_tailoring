@@ -1,43 +1,59 @@
-from src.tools.mcp_agent import invoke_mcp_agent, linkedin_server_params
-from src.update_user_profile.state import FullResumeGraphState
-from langchain_core.runnables import RunnableConfig
+"""
+LinkedIn Profile Parser Node
+
+Extracts structured information from LinkedIn profiles.
+Pure data processing - no file I/O.
+"""
+
 import logging
-import traceback
+from typing import Dict, Any
+from langchain_core.runnables import RunnableConfig
+
+from src.tools.mcp_agent import invoke_mcp_agent, linkedin_server_params
+from src.update_user_profile.state import UpdateUserProfileState, set_error
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-async def parse_linkedin_profile(state: FullResumeGraphState, config: RunnableConfig) -> dict:
+async def linkedin_parser(
+    state: UpdateUserProfileState, config: RunnableConfig
+) -> Dict[str, Any]:
     """
-    Extracts structured information from a LinkedIn profile URL and returns it as properly formatted markdown.
+    Extracts structured information from a LinkedIn profile URL.
 
-    Input: input_data (with the LinkedIn URL)
-    Output: input_data (with the parsed LinkedIn profile content)
+    Input: input_data (LinkedIn URL)
+    Output: parsed_content (structured markdown content)
 
     Args:
-        state: The current graph state.
-        config: The LangChain runnable config.
+        state: Graph state with LinkedIn URL in input_data
+        config: LangChain runnable config
 
     Returns:
-        A dictionary containing the parsed LinkedIn content in the input_data field, ready for the next node in the graph.
+        Dictionary with parsed_content or error state
     """
     try:
         linkedin_url = state["input_data"]
 
-        # Add metadata to config for tracing/debugging
+        if not linkedin_url:
+            return set_error("No LinkedIn URL provided for parsing")
+
+        # Add metadata for tracing
         config["metadata"] = {
             **config.get("metadata", {}),
             "linkedin_url": linkedin_url,
-            "node": "parse_linkedin_profile"
+            "node": "linkedin_parser",
+            "graph": "update_user_profile",
         }
 
         messages = [
             {
                 "role": "user",
                 "content": f"""
-- You are a professional LinkedIn profile parser tasked with creating a comprehensive resume section
-- Your goal is to extract and structure all relevant professional information from the LinkedIn profile
-- Follow these strict guidelines:
+You are a professional LinkedIn profile parser tasked with creating a comprehensive resume section.
+
+Your goal is to extract and structure all relevant professional information from the LinkedIn profile.
+
+Follow these strict guidelines:
 
 1. CONTENT EXTRACTION:
    - Work experience with detailed responsibilities and achievements
@@ -69,20 +85,14 @@ Return ONLY the properly formatted markdown content. Do not include any explanat
             }
         ]
 
+        # Parse LinkedIn profile using MCP agent
         agent_response = await invoke_mcp_agent(messages, [linkedin_server_params])
-        logging.debug(
-            "[DEBUG] Agent response in parse_linkedin_profile tool: %s",
-            agent_response["messages"][-1:],
-        )
-
-        # Extract the markdown content from agent response
         parsed_content = agent_response["messages"][-1].content
-        
-        # Return updated state
-        return {"input_data": parsed_content}
+
+        logging.debug(f"[DEBUG] LinkedIn profile parsed: {len(parsed_content)} chars")
+
+        return {"parsed_content": parsed_content}
 
     except Exception as e:
-        logging.error(f"[DEBUG] Error in parse_linkedin_profile. Current state: {state}")
-        logging.error(f"[DEBUG] Error in parse_linkedin_profile tool: {e}")
-        logging.error(traceback.format_exc())
-        return {"error": f"Error in parse_linkedin_profile: {str(e)}"}
+        logging.error(f"[DEBUG] Error in linkedin_parser: {e}")
+        return set_error(f"LinkedIn parsing failed: {str(e)}")

@@ -28,7 +28,7 @@ async def write_cover_letter(
     Returns:
         A concise message explaining the cover letter's focus and that the cover letter file was written. If tool calls fail, a concise error message.
 
-    Note: The correct Supabase Storage object paths for all files must be provided as arguments. If you are unsure how to construct these paths, use the get_user_files_paths tool (with the appropriate user_id and job_id) to obtain the canonical paths before calling this tool.
+    Note: The correct Supabase Storage object paths for all files must be provided as arguments. If you are unsure how to construct these paths, use the get_file_paths function (with the appropriate user_id and job_id) to obtain the canonical paths before calling this tool.
     """
     logging.debug(
         f"[DEBUG] write_cover_letter tool called with resume_path={resume_path}, full_resume_path={full_resume_path}, job_description_path={job_description_path}, feedback_path={feedback_path}, cover_letter_path={cover_letter_path}"
