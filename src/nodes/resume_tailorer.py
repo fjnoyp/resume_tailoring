@@ -10,12 +10,9 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.tools.supabase_storage_tools import (
-    get_file_paths,
-    upload_file_to_bucket,
-)
 from src.main_agent import model
 from src.state import GraphState, set_error
+from src.tools.state_storage_manager import save_processing_result
 from src.info_collection import info_collection_graph
 from src.info_collection.state import create_info_collection_state
 
@@ -186,9 +183,10 @@ JOB_STRATEGY:
         response = await model.ainvoke(tailoring_prompt, config=config)
         tailored_resume = response.content
 
-        # Save to storage (only file I/O operation, isolated here)
-        file_paths = get_file_paths(user_id, job_id)
-        await upload_file_to_bucket(file_paths.tailored_resume_path, tailored_resume)
+        # Save to storage using StateStorageManager
+        await save_processing_result(
+            user_id, job_id, "tailored_resume", tailored_resume
+        )
 
         logging.debug(
             f"[DEBUG] Tailored resume generated: {len(tailored_resume)} chars"

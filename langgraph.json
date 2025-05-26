@@ -3,7 +3,7 @@
         "."
     ],
     "graphs": {
-        "chat": "src.main_agent:agent",
+        "test_graph": "src.test_graph:test_graph",
         "full_tailor_resume": "src.graph:graph",
         "update_full_resume": "src.update_user_profile.graph:user_full_resume_graph"
     },

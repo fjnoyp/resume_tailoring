@@ -9,12 +9,9 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.tools.supabase_storage_tools import (
-    get_file_paths,
-    upload_file_to_bucket,
-)
 from src.main_agent import model
 from src.state import GraphState, set_error
+from src.tools.state_storage_manager import save_processing_result
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -71,9 +68,8 @@ JOB_DESCRIPTION:
         response = await model.ainvoke(prompt, config=config)
         job_strategy = response.content
 
-        # Save to storage (only file I/O operation, isolated here)
-        file_paths = get_file_paths(user_id, job_id)
-        await upload_file_to_bucket(file_paths.job_strategy_path, job_strategy)
+        # Save to storage using StateStorageManager
+        await save_processing_result(user_id, job_id, "job_strategy", job_strategy)
 
         logging.debug(f"[DEBUG] Job strategy generated: {len(job_strategy)} chars")
 

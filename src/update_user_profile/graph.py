@@ -6,23 +6,52 @@ Handles different ways to update a user's full resume:
 2. Parse LinkedIn profile and merge
 3. Parse additional files and merge
 
-Follows simplified architecture with centralized data loading and clean separation of concerns.
+Uses StateStorageManager for unified state management.
 """
 
 from langgraph.graph import StateGraph, START, END
-from src.update_user_profile.nodes.data_loader import data_loader
 from src.update_user_profile.nodes.update_user_full_resume import resume_updater
 from src.update_user_profile.nodes.parse_linkedin_profile import linkedin_parser
 from src.update_user_profile.nodes.parse_file_to_markdown import file_parser
-from src.update_user_profile.state import UpdateUserProfileState
+from src.update_user_profile.state import UpdateUserProfileState, set_error
+from src.tools.state_storage_manager import load_user_profile_data
+
+
+async def initialize_profile_state(state: UpdateUserProfileState, config) -> dict:
+    """
+    Initialize state by loading user profile data using StateStorageManager.
+
+    Replaces the old data_loader node with unified state management.
+    """
+    try:
+        user_id = state["user_id"]
+
+        # Add metadata for tracing
+        config["metadata"] = {
+            **config.get("metadata", {}),
+            "user_id": user_id,
+            "node": "initialize_profile_state",
+            "graph": "update_user_profile",
+        }
+
+        # Load user profile data using StateStorageManager
+        load_result = await load_user_profile_data(user_id)
+
+        if not load_result.success:
+            return set_error(load_result.error)
+
+        return load_result.loaded_fields
+
+    except Exception as e:
+        return set_error(f"Profile state initialization failed: {str(e)}")
 
 
 def create_user_profile_update_graph() -> StateGraph:
     """
-    Creates the user profile update graph with simplified architecture.
+    Creates the user profile update graph with unified state management.
 
     Pipeline:
-    1. data_loader: Load current full resume from storage
+    1. initialize_profile_state: Load current full resume using StateStorageManager
     2. Route based on operation_mode:
        - "update_resume": Direct to resume_updater
        - "parse_linkedin": linkedin_parser → resume_updater
@@ -36,15 +65,15 @@ def create_user_profile_update_graph() -> StateGraph:
     graph_builder = StateGraph(UpdateUserProfileState)
 
     # Add nodes
-    graph_builder.add_node("data_loader", data_loader)
+    graph_builder.add_node("initialize_profile_state", initialize_profile_state)
     graph_builder.add_node("resume_updater", resume_updater)
     graph_builder.add_node("linkedin_parser", linkedin_parser)
     graph_builder.add_node("file_parser", file_parser)
 
-    # Start with data loading
-    graph_builder.add_edge(START, "data_loader")
+    # Start with state initialization
+    graph_builder.add_edge(START, "initialize_profile_state")
 
-    # Route based on operation mode after data loading
+    # Route based on operation mode after state initialization
     def route_by_operation_mode(state: UpdateUserProfileState) -> str:
         """Route to appropriate processing node based on operation mode"""
         if state.get("error"):
@@ -61,7 +90,7 @@ def create_user_profile_update_graph() -> StateGraph:
             return END
 
     graph_builder.add_conditional_edges(
-        "data_loader",
+        "initialize_profile_state",
         route_by_operation_mode,
         {
             "resume_updater": "resume_updater",

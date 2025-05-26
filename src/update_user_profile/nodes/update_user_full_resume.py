@@ -9,12 +9,9 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.tools.supabase_storage_tools import (
-    get_file_paths,
-    upload_file_to_bucket,
-)
 from src.main_agent import model
 from src.update_user_profile.state import UpdateUserProfileState, set_error
+from src.tools.state_storage_manager import save_processing_result
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -94,10 +91,9 @@ IMPORTANT: Return ONLY the markdown content. Do not include any explanations, co
         response = await model.ainvoke(prompt, config=config)
         updated_full_resume = response.content
 
-        # Save to storage (only file I/O operation, isolated here)
-        file_paths = get_file_paths(user_id, "")  # Empty job_id for user files
-        await upload_file_to_bucket(
-            file_paths.user_full_resume_path, updated_full_resume
+        # Save to storage using StateStorageManager
+        await save_processing_result(
+            user_id, None, "updated_full_resume", updated_full_resume
         )
 
         logging.debug(f"[DEBUG] Resume updated: {len(updated_full_resume)} chars")
