@@ -9,7 +9,7 @@ supabase_client: Client = create_client(os.environ.get("SUPABASE_URL"), os.envir
 
 bucket_name = "temp"
 
-def get_user_files_paths(user_id: str, job_id: str) -> dict[str, str]:
+def get_user_files_paths(user_id: str, job_id: Optional[str] = None) -> dict[str, str]:
     """
     Returns the standard storage paths for all main user/job-related files in Supabase. Use to get canonical file locations for a user and job, regardless of file existence.
 
@@ -24,13 +24,17 @@ def get_user_files_paths(user_id: str, job_id: str) -> dict[str, str]:
     response = {
         "user_full_resume_path": f"{user_id}/FULL_RESUME.md",
         "original_resume_path": f"{user_id}/ORIGINAL_RESUME.md",
-        "job_description_path": f"{user_id}/{job_id}/JOB_DESCRIPTION.md",
-        "job_strategy_path": f"{user_id}/{job_id}/JOB_STRATEGY.md",
-        "tailored_resume_path": f"{user_id}/{job_id}/TAILORED_RESUME.md",
-        "recruiter_feedback_path": f"{user_id}/{job_id}/RECRUITER_FEEDBACK.md",
-        "cover_letter_path": f"{user_id}/{job_id}/COVER_LETTER.md",
-        "path for any other files": f"{user_id}/{job_id}/[file_name]"
+        "other_files_path": f"{user_id}/[file_name]"
     }
+
+    if job_id is not None:
+        response.update({
+            "job_description_path": f"{user_id}/{job_id}/JOB_DESCRIPTION.md",
+            "job_strategy_path": f"{user_id}/{job_id}/JOB_STRATEGY.md",
+            "tailored_resume_path": f"{user_id}/{job_id}/TAILORED_RESUME.md",
+            "recruiter_feedback_path": f"{user_id}/{job_id}/RECRUITER_FEEDBACK.md",
+            "cover_letter_path": f"{user_id}/{job_id}/COVER_LETTER.md"
+        })
 
     return response
 

@@ -5,7 +5,7 @@
     "graphs": {
         "chat": "src.main_agent:agent",
         "full_tailor_resume": "src.graph:graph",
-        "test_graph": "src.test_graph:test_graph"
+        "update_full_resume": "src.update_user_profile.graph:user_full_resume_graph"
     },
     "env": ".env"
 }
