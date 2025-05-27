@@ -1,15 +1,15 @@
 # TO DO
 
-[x] Restructure backend ai project folders and files to align with [next_goals.md](./plan/next_goals.md) modules
+[x] Fix linkedn mcp blocking call
 
-[x] Reorganize and rename Supabase Storage files to better match [next_goals.md](./plan/next_goals.md) instructions
+[ ] Align frontend with new conversational interruptions (wait for finishing backend refactor)
 
-[x] Host flutter app using Firebase Hosting
+[ ] Implement proper output grading (wait for meeting / better clarification on it)
 
-[ ] Improve "ask-user" (originally "interactive_experience_gathering_tool") tool prompt to generate the expected complete result
+[ ] (UX) Manage files loading state
 
-[ ] Improve "tailor-resume" (originally "resume_tailoring_tool") tool prompt to provide full analysis/description on why it was tailored in this way
+[ ] Fix github action for firebase deploy
 
-[ ] Refactor UI based on [next_goals.md](./plan/next_goals.md) for improved user experience
+[ ] Adjust tailoring process tracking (avoid buffering, maybe using "empty interrupts")
 
-[ ] Overall alignment with [ai_strategies.md](./plan/ai/ai_strategies.md) and [resume-writing-guidelines.md](./plan/ai/resume-writing-guides.md)
+[ ] Enhance UI - navigation, jobs list
