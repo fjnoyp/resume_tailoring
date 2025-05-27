@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
+from langgraph.types import interrupt
 from langgraph.errors import GraphInterrupt
 
 from src.llm_config import model
@@ -132,7 +133,55 @@ Please provide as much detail as possible.
                 return {"collected_info": collected_info, "is_complete": True}
         else:
             # No user response yet, trigger interrupt to get user input
-            raise GraphInterrupt("Waiting for user response")
+            # Get the last AI message content to show as the question
+            last_ai_message = messages[-1] if messages else None
+            question_content = last_ai_message.content if last_ai_message and isinstance(last_ai_message, AIMessage) else "Please provide your response to continue the conversation."
+            
+            # Use the built-in interrupt method with the actual question
+            user_response = interrupt(question_content)
+            
+            # Process the user response
+            question_number = len(collected_info) - 1  # -1 for missing_info_categories
+            collected_info[f"response_{question_number}"] = user_response
+            
+            # Add user message to conversation
+            user_message = HumanMessage(content=user_response)
+            updated_messages = messages + [user_message]
+            
+            # Check if we have more questions
+            if remaining_questions:
+                next_question = remaining_questions[0]
+                remaining_questions = remaining_questions[1:]
+
+                total_questions = len(collected_info) + len(remaining_questions)
+                current_question_num = len(collected_info)
+
+                ai_message = AIMessage(
+                    content=f"""
+Thank you for that information!
+
+**Question {current_question_num} of {total_questions}:**
+{next_question}
+
+Please provide as much detail as possible.
+"""
+                )
+
+                # Append new message to existing messages
+                final_messages = updated_messages + [ai_message]
+                
+                return {
+                    "messages": final_messages,
+                    "remaining_questions": remaining_questions,
+                    "collected_info": collected_info,
+                }
+            else:
+                # No more questions, move to completion
+                return {
+                    "messages": updated_messages,
+                    "collected_info": collected_info, 
+                    "is_complete": True
+                }
 
     except GraphInterrupt:
         raise  # Re-raise GraphInterrupt

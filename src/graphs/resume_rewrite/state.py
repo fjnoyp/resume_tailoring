@@ -1,5 +1,4 @@
-from typing import TypedDict, Annotated, Optional, List, Dict, Any
-from langgraph.graph.message import add_messages
+from typing import TypedDict, Optional, Dict, Any
 
 
 class GraphState(TypedDict):
@@ -20,9 +19,6 @@ class GraphState(TypedDict):
         job_strategy: Company analysis and hiring strategy (from job_analyzer)
         recruiter_feedback: Resume evaluation from recruiter perspective (from resume_screener)
         tailored_resume: Customized resume for the job (from resume_tailorer)
-
-    INTERACTION:
-        messages: Conversation history for user interactions
 
     ERROR HANDLING:
         error: Error message if processing fails
@@ -59,7 +55,6 @@ def create_initial_state(user_id: str, job_id: str) -> GraphState:
         "job_strategy": None,
         "recruiter_feedback": None,
         "tailored_resume": None,
-        "messages": [],
         "error": None,
     }
 
