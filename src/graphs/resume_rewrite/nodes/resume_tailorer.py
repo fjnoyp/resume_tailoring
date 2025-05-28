@@ -2,39 +2,71 @@
 Resume Tailoring Node
 
 Tailors resumes to specific jobs using analysis results and user interaction.
-Pure data processing with optional info collection - no file I/O.
+Tracks missing information persistently to reduce hallucinations and support iterative improvements.
 """
 
-import json
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel, Field
 
 from src.llm_config import model
 from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
-from src.graphs.info_collection.graph import info_collection_graph
-from src.graphs.info_collection.state import create_info_collection_state
-from langgraph.errors import GraphInterrupt
+from langgraph.types import interrupt
 
 logging.basicConfig(level=logging.DEBUG)
 
 
+class ResumeAnalysisAndGeneration(BaseModel):
+    """Structured output for resume analysis and generation"""
+
+    missing_info: List[str] = Field(
+        description="List of specific missing information/experiences that would significantly improve the application"
+    )
+    tailored_resume: str = Field(description="The tailored resume in markdown format")
+
+
+class InterruptData(BaseModel):
+    """Typed data sent to client when missing info is detected"""
+
+    missing_info: List[str] = Field(description="List of specific missing information")
+    tailored_resume: str = Field(
+        description="Current tailored resume generated with available info"
+    )
+    user_id: str = Field(description="User identifier for context")
+    job_id: str = Field(description="Job identifier for context")
+    full_resume: str = Field(description="Full resume for info collection context")
+
+
+class InfoCollectionResult(BaseModel):
+    """Expected result when resuming after info collection"""
+
+    final_collected_info: str = Field(
+        default="", description="Additional info collected from user"
+    )
+    updated_full_resume: str = Field(description="Updated full resume with new info")
+
+
 async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
     """
-    Tailors resume for specific job using analysis results.
+    Tailors resume for specific job using analysis results with persistent missing info tracking.
 
-    Input: original_resume, full_resume, job_description, job_strategy, recruiter_feedback (all loaded by data_loader)
-    Output: tailored_resume
+    Input: original_resume, full_resume, job_description, job_strategy, recruiter_feedback
+    Output: tailored_resume, missing_info (persistent context)
 
-    If missing critical information, calls info collection subgraph to gather details from user.
+    Approach:
+    1. Single AI call that analyzes missing info AND generates resume
+    2. If missing_info found → interrupt with current resume + missing info
+    3. On resume → restart entire node from top with new info
+    4. Always produces resume output regardless of gaps
 
     Args:
         state: Graph state with all analysis results and data loaded
         config: LangChain runnable config
 
     Returns:
-        Dictionary with tailored_resume or error state
+        Dictionary with tailored_resume and updated missing_info
     """
     try:
         user_id = state["user_id"]
@@ -66,112 +98,31 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
             "node": "resume_tailorer",
         }
 
-        # First, analyze what information might be missing
-        analysis_prompt = f"""
-You are a professional resume expert. Analyze the provided materials to identify what critical information might be missing for optimal job tailoring.
-
-Review the ORIGINAL_RESUME and FULL_RESUME against the JOB_REQUIREMENTS and RECRUITER_FEEDBACK to identify gaps.
-
-Output a JSON object with:
-- "missing_info": list of specific missing information/experiences needed
-- "has_sufficient_info": boolean indicating if current resume info is sufficient
-- "questions_for_user": list of specific questions to ask user if information is missing
-
-If has_sufficient_info is true, return empty lists for missing_info and questions_for_user.
-
-RECRUITER_FEEDBACK:
-{recruiter_feedback}
-
-ORIGINAL_RESUME:
-{original_resume}
-
-FULL_RESUME:
-{full_resume}
-
-JOB_DESCRIPTION:
-{job_description}
-
-JOB_STRATEGY:
-{job_strategy}
-
-Output ONLY the valid JSON content. Do not include any other text or ```json``` tags.
-"""
-
-        # Analyze missing information
-        analysis_response = await model.ainvoke(analysis_prompt, config=config)
-
-        # Parse analysis response
-        try:
-            analysis_data = json.loads(analysis_response.content)
-            has_sufficient_info = analysis_data.get("has_sufficient_info", True)
-            questions_for_user = analysis_data.get("questions_for_user", [])
-        except json.JSONDecodeError:
-            logging.warning(
-                "Failed to parse analysis response, proceeding with available info"
-            )
-            has_sufficient_info = True
-            questions_for_user = []
-
-        # Collect additional information if needed
+        # Initialize with current full resume
         additional_info = ""
-        updated_full_resume = full_resume  # Start with current full resume
+        working_full_resume = full_resume
 
-        if not has_sufficient_info and questions_for_user:
-            logging.info(
-                f"[DEBUG] Collecting additional info via subgraph: {len(questions_for_user)} questions"
-            )
+        # Single AI call: Analyze missing info AND generate tailored resume
+        prompt = f"""
+You are a professional resume expert. Your task is to:
+1. Identify what critical information is missing for optimal job tailoring
+2. Generate the best possible tailored resume using available information
 
-            try:
-                # Create subgraph state with full resume context
-                subgraph_state = create_info_collection_state(
-                    missing_info_requirements=analysis_response.content,
-                    user_id=user_id,
-                    full_resume=full_resume,  # Pass full resume for context-aware questioning
-                )
+Be conservative with missing info - only flag things that would significantly impact application success.
 
-                # Call info collection subgraph
-                # Note: Not passing config to avoid serialization issues with subgraph calls
-                logging.info(f"[DEBUG] About to call info_collection_graph.ainvoke...")
-                collection_result = await info_collection_graph.ainvoke(
-                    subgraph_state #, config=config
-                )
-                additional_info = collection_result.get("final_collected_info", "")
-                updated_full_resume = collection_result.get(
-                    "updated_full_resume", full_resume
-                )
+For missing info analysis, consider:
+- Missing relevant skills/technologies mentioned in job
+- Lack of quantifiable achievements matching requirements
+- Missing industry experience or certifications
+- Absence of required leadership/project examples
 
-                logging.debug(
-                    f"[DEBUG] Additional info collected: {len(additional_info)} chars"
-                )
-                if updated_full_resume != full_resume:
-                    logging.debug(
-                        f"[DEBUG] Full resume updated: {len(updated_full_resume)} chars"
-                    )
-            except GraphInterrupt:
-                raise  # Re-raise GraphInterrupt
-            except Exception as subgraph_error:
-                logging.warning(
-                    f"[DEBUG] Info collection subgraph failed: {subgraph_error}, proceeding with available info"
-                )
-                # Continue with available information if subgraph fails
-                additional_info = ""
-                updated_full_resume = full_resume
-
-        # Generate tailored resume with all available information
-        tailoring_prompt = f"""
-You are a professional resume expert specializing in job-specific tailoring.
-
-Tailor the candidate's resume for maximum acceptance likelihood using all available information:
-
-Guidelines:
-- SHOW DON'T TELL: Write about experiences that match job requirements
+For resume generation:
+- SHOW DON'T TELL: Write about experiences matching job requirements
 - Use quantifiable achievements and evidence-backed claims
-- Maintain professional tone and clear structure
-- Include job description keywords for ATS
+- Include job description keywords for ATS optimization
 - Never fabricate experiences or mischaracterize background
-- Integrate additional information naturally into relevant sections
-
-Output the tailored resume in markdown format.
+- DO NOT invent information to fill gaps - work with what you have
+- Focus on strongest available experiences if missing critical info
 
 RECRUITER_FEEDBACK:
 {recruiter_feedback}
@@ -180,7 +131,7 @@ ORIGINAL_RESUME:
 {original_resume}
 
 FULL_RESUME:
-{updated_full_resume}
+{working_full_resume}
 
 ADDITIONAL_COLLECTED_INFO:
 {additional_info}
@@ -190,25 +141,90 @@ JOB_DESCRIPTION:
 
 JOB_STRATEGY:
 {job_strategy}
+
+Return both the missing info analysis and the tailored resume.
 """
 
-        # Generate tailored resume
-        response = await model.ainvoke(tailoring_prompt, config=config)
-        tailored_resume = response.content
+        # Use structured output for reliable parsing
+        model_with_structure = model.with_structured_output(ResumeAnalysisAndGeneration)
+        result = await model_with_structure.ainvoke(prompt, config=config)
 
-        # Save to storage using StateStorageManager
+        logging.debug(
+            f"[DEBUG] Generated resume with {len(result.missing_info)} missing items identified"
+        )
+
+        # If we have missing info, interrupt to let client decide whether to collect more info
+        if result.missing_info:
+            logging.info(
+                f"[DEBUG] Missing critical info detected, interrupting: {result.missing_info}"
+            )
+
+            # Prepare typed interrupt data for client
+            interrupt_data = InterruptData(
+                missing_info=result.missing_info,
+                tailored_resume=result.tailored_resume,
+                user_id=user_id,
+                job_id=job_id,
+                full_resume=working_full_resume,
+            )
+
+            # Interrupt execution - when resumed, interrupt() returns the collection result
+            collection_result = interrupt(interrupt_data.model_dump())
+
+            # If we get here, client has resumed with info collection result
+            if collection_result:
+                logging.info("[DEBUG] Resuming with collection result")
+                try:
+                    validated_result = InfoCollectionResult.model_validate(
+                        collection_result
+                    )
+                    additional_info = validated_result.final_collected_info
+                    working_full_resume = validated_result.updated_full_resume
+
+                    logging.info(
+                        f"[DEBUG] Restarting with collected info: {len(additional_info)} chars"
+                    )
+
+                    # Restart the AI call with new information
+                    updated_prompt = prompt.replace(
+                        full_resume, working_full_resume
+                    ).replace(
+                        f"ADDITIONAL_COLLECTED_INFO:\n{additional_info}",
+                        f"ADDITIONAL_COLLECTED_INFO:\n{additional_info}",
+                    )
+
+                    result = await model_with_structure.ainvoke(
+                        updated_prompt, config=config
+                    )
+                    logging.debug(
+                        f"[DEBUG] Regenerated resume with {len(result.missing_info)} remaining missing items"
+                    )
+
+                except Exception as e:
+                    logging.warning(
+                        f"[DEBUG] Invalid collection result: {e}, using original resume"
+                    )
+            else:
+                logging.info(
+                    "[DEBUG] No collection result provided, using original resume"
+                )
+
+        # Save generated resume to storage
         await save_processing_result(
-            user_id, job_id, "tailored_resume", tailored_resume
+            user_id, job_id, "tailored_resume", result.tailored_resume
         )
 
         logging.debug(
-            f"[DEBUG] Tailored resume generated: {len(tailored_resume)} chars"
+            f"[DEBUG] Tailored resume completed: {len(result.tailored_resume)} chars"
         )
 
-        return {"tailored_resume": tailored_resume}
+        return {
+            "tailored_resume": result.tailored_resume,
+            "missing_info": (
+                "\n".join(result.missing_info) if result.missing_info else ""
+            ),
+        }
 
-    except GraphInterrupt:
-        raise  # Re-raise GraphInterrupt
     except Exception as e:
         logging.error(f"[DEBUG] Error in resume_tailorer: {e}")
         return set_error(f"Resume tailoring failed: {str(e)}")

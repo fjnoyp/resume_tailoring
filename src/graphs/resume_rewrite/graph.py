@@ -8,6 +8,7 @@ Uses StateStorageManager for cohesive state loading/saving operations.
 """
 
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.graphs.resume_rewrite.nodes import (
     job_analyzer,
@@ -58,7 +59,7 @@ def create_graph() -> StateGraph:
     4. resume_tailorer: Tailors resume using all analysis results
 
     Returns:
-        Compiled LangGraph ready for execution
+        Compiled LangGraph ready for execution with checkpointer for interrupts
     """
     # Create graph with simplified flat state
     graph_builder = StateGraph(GraphState)
@@ -76,7 +77,9 @@ def create_graph() -> StateGraph:
     graph_builder.add_edge("resume_screener", "resume_tailorer")
     graph_builder.add_edge("resume_tailorer", END)
 
-    return graph_builder.compile()
+    # Compile with checkpointer (required for interrupts)
+    checkpointer = MemorySaver()
+    return graph_builder.compile(checkpointer=checkpointer)
 
 
 # Create the main graph instance
