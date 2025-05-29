@@ -1,233 +1,208 @@
 """
-Info Collection Subgraph Nodes
+Info Collection Nodes
 
-Conversational agent flow for collecting missing resume information.
+Conversational nodes for collecting missing resume information from users.
 """
 
-import json
 import logging
-from typing import Dict, Any
+import json
+from typing import Dict, Any, List
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import SystemMessage
-from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import AIMessage
 
 from src.llm_config import model
-from src.graphs.update_user_profile.graph import update_user_profile_graph
-from src.graphs.update_user_profile.state import create_update_profile_state
-from src.utils.node_utils import validate_fields, setup_metadata, handle_error
-from .state import InfoCollectionState
+from src.graphs.info_collection.state import InfoCollectionState
+from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def create_conversation_agent():
-    """
-    Create a react agent for conversational info collection.
-
-    Returns:
-        Configured react agent for conversation
-    """
-    system_prompt = """You are a professional resume advisor helping collect missing information to improve a user's resume.
-
-IMPORTANT: You will receive a system message at the start listing the specific missing information areas to collect.
-
-Your role:
-1. Focus on collecting information about the specific missing areas provided
-2. Have a natural conversation with the user to gather these details
-3. Ask follow-up questions to get specific achievements and quantifiable results
-4. Keep mental notes of what information you've collected for each missing area
-5. When you have sufficient information for all missing areas, say "CONVERSATION_COMPLETE"
-
-Guidelines:
-- Be conversational and encouraging
-- Ask for specific examples, achievements, and metrics
-- Focus on quantifiable results when possible
-- Don't ask about all missing items at once - have a natural flow
-- If the user doesn't have experience in an area, acknowledge it and move on
-- End with "CONVERSATION_COMPLETE" when you've covered all missing areas
-"""
-
-    # Create react agent with no tools (just conversation)
-    agent = create_react_agent(model, [], prompt=system_prompt)
-    return agent
-
-
-# Create the conversation agent instance
-conversation_agent = create_conversation_agent()
-
-
-async def conversation_starter(
+async def info_collector_agent(
     state: InfoCollectionState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
-    Initializes the conversation by adding a system message about missing info.
+    Conversational agent that collects missing resume information.
+
+    Input: missing_info, messages (conversation history)
+    Output: messages (updated conversation), final_collected_info (when complete)
 
     Args:
-        state: Info collection state with missing_info list
+        state: InfoCollectionState with missing info requirements
         config: LangChain runnable config
 
     Returns:
-        Updated state with initial system context
+        Dictionary with conversation updates or completion state
     """
     try:
-        missing_info = state["missing_info"]
-
-        if not missing_info:
-            return {
-                "conversation_complete": True,
-                "final_collected_info": "No additional information needed",
-            }
-
-        # Setup metadata if user_id available
-        user_id = state.get("user_id")
-        if user_id:
-            setup_metadata(
-                config, "conversation_starter", user_id, graph="info_collection"
-            )
-
-        # Create detailed context message about missing information
-        missing_info_text = "\n".join([f"- {item}" for item in missing_info])
-
-        context_message = SystemMessage(
-            content=f"""MISSING INFORMATION TO COLLECT:
-{missing_info_text}
-
-Please collect information about these specific areas from the user. Start with a friendly greeting and explain that you'd like to help strengthen their resume by gathering some additional information. Focus on these areas throughout the conversation."""
-        )
-
-        return {"messages": [context_message]}
-
-    except Exception as e:
-        return handle_error(e, "conversation_starter")
-
-
-async def update_resume(
-    state: InfoCollectionState, config: RunnableConfig
-) -> Dict[str, Any]:
-    """
-    Termination node that creates targeted summary and calls update_user_profile graph.
-
-    Args:
-        state: State with conversation messages and user context
-        config: LangChain runnable config
-
-    Returns:
-        Final state with formatted info and updated resume
-    """
-    try:
-        # Validate required fields
+        # Validate required fields using dot notation
         error_msg = validate_fields(
-            state, ["user_id", "messages", "missing_info"], "update"
+            state, ["missing_info", "user_id"], "info collection"
         )
         if error_msg:
             return {"error": error_msg}
 
-        # Extract fields
-        user_id = state["user_id"]
-        messages = state["messages"]
-        missing_info = state["missing_info"]
+        # Extract fields using type-safe dot notation
+        user_id = state.user_id
+        missing_info = state.missing_info
+        messages = state.messages
 
         # Setup metadata
-        setup_metadata(config, "update_resume", user_id, graph="info_collection")
+        setup_profile_metadata(config, "info_collector_agent", user_id)
 
-        # Extract full conversation (excluding system messages)
-        conversation_parts = []
-        for msg in messages[1:]:  # Skip the initial system message
-            if hasattr(msg, "type"):
-                role = "Assistant" if msg.type == "ai" else "User"
-                conversation_parts.append(f"{role}: {msg.content}")
+        # Check if conversation should be terminated
+        if state.conversation_complete:
+            return {}  # No updates needed
 
-        if not conversation_parts:
+        # Determine conversation phase
+        if not messages:
+            # Start conversation - introduce purpose
+            missing_info_text = (
+                ", ".join(missing_info)
+                if missing_info
+                else "additional resume information"
+            )
+
+            response_text = f"""Hi! I'm here to help gather some missing information for your resume.
+
+I need to collect the following:
+{missing_info_text}
+
+Let's start with the first item. Can you tell me about: {missing_info[0] if missing_info else "your experience"}?"""
+
+            ai_message = AIMessage(content=response_text)
+            return {"messages": [ai_message]}
+
+        # Continue conversation - analyze last user message
+        last_message = messages[-1]
+
+        # Check if user wants to end conversation
+        if any(
+            phrase in last_message.content.lower()
+            for phrase in ["done", "finished", "that's all", "complete"]
+        ):
+            # Wrap up conversation
+            collected_info = await _extract_collected_info(messages, missing_info)
+
+            farewell_text = "Thank you! I've collected all the information. Your resume will be updated shortly."
+            ai_message = AIMessage(content=farewell_text)
+
             return {
-                "final_collected_info": "No information collected",
-                "updated_full_resume": state.get("full_resume", ""),
+                "messages": [ai_message],
+                "final_collected_info": collected_info,
+                "conversation_complete": True,
             }
 
-        # Create targeted summary that maps collected info to missing areas
-        conversation_text = "\n\n".join(conversation_parts)
-        missing_info_list = "\n".join([f"- {item}" for item in missing_info])
+        # Generate contextual response
+        context_prompt = f"""
+You are a helpful assistant collecting missing resume information. You need to gather:
+{', '.join(missing_info)}
 
-        summary_prompt = f"""
-You are a professional resume expert. Analyze this conversation where a user provided information to fill specific gaps in their resume.
+Based on the conversation so far, ask relevant follow-up questions to collect the missing information.
+Be conversational and helpful. If the user has provided some information, acknowledge it and ask for the next piece.
 
-MISSING INFORMATION AREAS THAT WERE TARGETED:
-{missing_info_list}
-
-CONVERSATION:
-{conversation_text}
-
-Create a structured summary that:
-1. Maps the collected information to each missing area
-2. Highlights specific achievements, metrics, and examples provided
-3. Notes any areas where the user indicated they don't have relevant experience
-4. Formats the information for easy integration into a resume
-
-For each missing area, clearly indicate:
-- What information was collected (if any)
-- Specific details, achievements, or metrics mentioned
-- If no relevant experience was provided
-
-Output in clear markdown format with sections for each missing area.
+Keep responses brief and focused on collecting the specific information needed.
 """
 
-        response = await model.ainvoke(summary_prompt, config=config)
-        formatted_info = response.content
+        # Add context to messages for model
+        context_messages = [{"role": "system", "content": context_prompt}] + [
+            {"role": msg.type, "content": msg.content} for msg in messages
+        ]
 
-        # Call the separate update_user_profile graph to handle resume updating
-        logging.info(f"[DEBUG] Calling update_user_profile graph with targeted summary")
+        response = await model.ainvoke(context_messages, config=config)
+        ai_message = AIMessage(content=response.content)
 
-        update_state = create_update_profile_state(
-            user_id=user_id, operation_mode="update_resume", input_data=formatted_info
-        )
-
-        # Call the update_user_profile graph
-        update_result = await update_user_profile_graph.ainvoke(
-            update_state, config=config
-        )
-
-        if update_result.get("error"):
-            logging.warning(f"Failed to update full resume: {update_result['error']}")
-            updated_full_resume = state.get(
-                "full_resume", ""
-            )  # Use current if update failed
-        else:
-            updated_full_resume = update_result.get(
-                "updated_full_resume", state.get("full_resume", "")
-            )
-            logging.info(f"[DEBUG] Full resume updated by update_user_profile graph")
-
-        return {
-            "final_collected_info": formatted_info,
-            "updated_full_resume": updated_full_resume,
-        }
+        return {"messages": [ai_message]}
 
     except Exception as e:
-        return handle_error(e, "update_resume")
+        return handle_error(e, "info_collector_agent")
 
 
-def should_continue(state: InfoCollectionState) -> str:
+async def update_resume_with_collected_info(
+    state: InfoCollectionState, config: RunnableConfig
+) -> Dict[str, Any]:
     """
-    Routing function to determine if conversation should continue or terminate.
+    Updates full resume with collected information.
+
+    Input: final_collected_info, full_resume
+    Output: updated_full_resume
 
     Args:
-        state: Current conversation state
+        state: InfoCollectionState with collected info and current resume
+        config: LangChain runnable config
 
     Returns:
-        Next node name
+        Dictionary with updated_full_resume or error state
     """
-    # Check if conversation should terminate
-    if state.get("conversation_complete"):
-        return "update_resume"
+    try:
+        # Validate required fields using dot notation
+        error_msg = validate_fields(
+            state, ["final_collected_info", "full_resume"], "resume update"
+        )
+        if error_msg:
+            return {"error": error_msg}
 
-    # Check if agent said CONVERSATION_COMPLETE
-    messages = state.get("messages", [])
-    if messages:
-        last_message = messages[-1]
-        if (
-            hasattr(last_message, "content")
-            and "CONVERSATION_COMPLETE" in last_message.content
-        ):
-            return "update_resume"
+        # Extract fields using type-safe dot notation
+        user_id = state.user_id
+        collected_info = state.final_collected_info
+        current_resume = state.full_resume
 
-    # Continue conversation
-    return "conversation_agent"
+        # Setup metadata
+        setup_profile_metadata(config, "update_resume_with_collected_info", user_id)
+
+        prompt = f"""
+Update this resume by incorporating the newly collected information.
+
+INSTRUCTIONS:
+1. Integrate the new information into the appropriate sections
+2. Maintain the existing structure and formatting
+3. Avoid duplication - merge similar information intelligently
+4. Preserve all existing good content
+5. Ensure consistency in style and tone
+
+CURRENT RESUME:
+{current_resume}
+
+NEWLY COLLECTED INFORMATION:
+{collected_info}
+
+Return the complete updated resume.
+"""
+
+        response = await model.ainvoke(prompt, config=config)
+        updated_resume = response.content
+
+        logging.debug(
+            f"[DEBUG] Resume updated with collected info: {len(updated_resume)} chars"
+        )
+
+        return {"updated_full_resume": updated_resume}
+
+    except Exception as e:
+        return handle_error(e, "update_resume_with_collected_info")
+
+
+async def _extract_collected_info(messages: List, missing_info: List[str]) -> str:
+    """
+    Helper function to extract collected information from conversation messages.
+
+    Args:
+        messages: Conversation message history
+        missing_info: List of information that was supposed to be collected
+
+    Returns:
+        Formatted string with collected information
+    """
+    # Extract user messages (excluding the first AI introduction)
+    user_messages = [msg.content for msg in messages if msg.type == "human"]
+
+    if not user_messages:
+        return "No information collected"
+
+    # Simple extraction - in practice you might want more sophisticated parsing
+    collected_info = {
+        "requested_info": missing_info,
+        "user_responses": user_messages,
+        "summary": " ".join(user_messages),
+    }
+
+    return json.dumps(collected_info, indent=2)

@@ -1,7 +1,8 @@
-from typing import TypedDict, Optional, Dict, Any
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
 
 
-class GraphState(TypedDict):
+class GraphState(BaseModel):
     """
     Simplified flat state with clear field ownership and data flow.
 
@@ -26,40 +27,42 @@ class GraphState(TypedDict):
     """
 
     # Context (set once, never changes)
-    user_id: str
-    job_id: str
+    user_id: str = Field(..., description="Session user identifier")
+    job_id: str = Field(..., description="Session job identifier")
 
     # Input data (loaded by data_loader)
-    job_description: Optional[str] = None
-    original_resume: Optional[str] = None
-    full_resume: Optional[str] = None
+    job_description: Optional[str] = Field(None, description="Raw job posting text")
+    original_resume: Optional[str] = Field(
+        None, description="User's base resume content"
+    )
+    full_resume: Optional[str] = Field(
+        None, description="User's complete resume with all details"
+    )
 
     # Processing pipeline outputs
-    job_strategy: Optional[str] = None  # job_analyzer → resume_screener
-    recruiter_feedback: Optional[str] = None  # resume_screener → resume_tailorer
-    missing_info: Optional[str] = (
-        None  # resume_tailorer → persistent context for iterations
+    job_strategy: Optional[str] = Field(
+        None, description="Company analysis and hiring strategy"
     )
-    tailored_resume: Optional[str] = None  # resume_tailorer → END
+    recruiter_feedback: Optional[str] = Field(
+        None, description="Resume evaluation from recruiter perspective"
+    )
+    missing_info: Optional[str] = Field(
+        None, description="Persistent context of missing information for tailoring"
+    )
+    tailored_resume: Optional[str] = Field(
+        None, description="Customized resume for the job"
+    )
 
     # Error handling
-    error: Optional[str] = None
+    error: Optional[str] = Field(None, description="Error message if processing fails")
 
 
 def create_initial_state(user_id: str, job_id: str) -> GraphState:
     """Create initial state with required context"""
-    return {
-        "user_id": user_id,
-        "job_id": job_id,
-        "job_description": None,
-        "original_resume": None,
-        "full_resume": None,
-        "job_strategy": None,
-        "recruiter_feedback": None,
-        "missing_info": None,
-        "tailored_resume": None,
-        "error": None,
-    }
+    return GraphState(
+        user_id=user_id,
+        job_id=job_id,
+    )
 
 
 def set_error(error_msg: str) -> Dict[str, Any]:

@@ -70,7 +70,7 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
         Dictionary with tailored_resume and updated missing_info
     """
     try:
-        # Validate required fields
+        # Validate required fields using dot notation
         required = [
             "original_resume",
             "full_resume",
@@ -82,14 +82,14 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
         if error_msg:
             return {"error": error_msg}
 
-        # Extract fields
-        user_id = state["user_id"]
-        job_id = state["job_id"]
-        original_resume = state["original_resume"]
-        full_resume = state["full_resume"]
-        job_description = state["job_description"]
-        job_strategy = state["job_strategy"]
-        recruiter_feedback = state["recruiter_feedback"]
+        # Extract fields using type-safe dot notation
+        user_id = state.user_id
+        job_id = state.job_id
+        original_resume = state.original_resume
+        full_resume = state.full_resume
+        job_description = state.job_description
+        job_strategy = state.job_strategy
+        recruiter_feedback = state.recruiter_feedback
 
         # Setup metadata
         setup_metadata(config, "resume_tailorer", user_id, job_id)

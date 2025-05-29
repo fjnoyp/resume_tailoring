@@ -35,18 +35,18 @@ async def file_parser(
         Dictionary with parsed_content or error state
     """
     try:
-        # Validate required fields
-        error_msg = validate_fields(state, ["input_data"], "parsing")
+        # Validate required fields using dot notation
+        error_msg = validate_fields(state, ["input_data"], "file parsing")
         if error_msg:
             return {"error": error_msg}
 
-        # Extract fields
-        user_id = state["user_id"]
-        file_names_str = state["input_data"]
+        # Extract fields using type-safe dot notation
+        user_id = state.user_id
+        file_names_str = state.input_data
         file_names = [name.strip() for name in file_names_str.split(",")]
 
         # Setup metadata
-        setup_profile_metadata(config, "file_parser", user_id, file_names=file_names)
+        setup_profile_metadata(config, "file_parser", user_id)
 
         # Read all files content using StateStorageManager
         all_content = []

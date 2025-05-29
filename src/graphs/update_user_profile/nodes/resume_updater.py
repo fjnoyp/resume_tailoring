@@ -12,7 +12,7 @@ from langchain_core.runnables import RunnableConfig
 from src.llm_config import model
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
 from src.tools.state_storage_manager import save_processing_result
-from src.utils.node_utils import setup_profile_metadata, handle_error
+from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -34,13 +34,18 @@ async def resume_updater(
         Dictionary with updated_full_resume or error state
     """
     try:
-        # Extract fields
-        user_id = state["user_id"]
-        input_data = state["input_data"]
-        current_full_resume = state["current_full_resume"] or ""
+        # Validate required fields using dot notation
+        error_msg = validate_fields(state, ["input_data"], "resume update")
+        if error_msg:
+            return {"error": error_msg}
+
+        # Extract fields using type-safe dot notation
+        user_id = state.user_id
+        input_data = state.input_data
+        current_full_resume = state.current_full_resume or ""
 
         # Handle parsed content if available (from LinkedIn/file parsing)
-        content_to_merge = state.get("parsed_content", input_data)
+        content_to_merge = state.parsed_content or input_data
 
         if not content_to_merge:
             return {"error": "No content available to merge into resume"}

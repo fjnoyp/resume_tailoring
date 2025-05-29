@@ -5,11 +5,12 @@ Conversational agent state for collecting missing resume information.
 Updated to directly accept InterruptData from resume_tailorer.py
 """
 
-from typing import TypedDict, Annotated, Optional, List, Dict, Any
+from typing import Annotated, Optional, List, Dict, Any
+from pydantic import BaseModel, Field
 from langgraph.graph.message import add_messages
 
 
-class InfoCollectionState(TypedDict):
+class InfoCollectionState(BaseModel):
     """
     State for conversational info collection subgraph.
 
@@ -28,17 +29,21 @@ class InfoCollectionState(TypedDict):
     """
 
     # Essential inputs
-    missing_info: List[str]  # What we need to collect
-    user_id: str  # User context
-    full_resume: str  # Resume to update
+    missing_info: List[str] = Field(..., description="What we need to collect")
+    user_id: str = Field(..., description="User context")
+    full_resume: str = Field(..., description="Resume to update")
 
     # Conversation management (required for react agent)
-    messages: Annotated[List, add_messages]
+    messages: Annotated[List, add_messages] = Field(
+        default_factory=list, description="Conversation history"
+    )
 
     # Outputs
-    final_collected_info: Optional[str] = None  # Formatted collected info
-    updated_full_resume: Optional[str] = None  # Updated resume
-    conversation_complete: bool = False  # Termination flag
+    final_collected_info: Optional[str] = Field(
+        None, description="Formatted collected info"
+    )
+    updated_full_resume: Optional[str] = Field(None, description="Updated resume")
+    conversation_complete: bool = Field(False, description="Termination flag")
 
 
 def create_info_collection_state_from_interrupt(
@@ -53,15 +58,11 @@ def create_info_collection_state_from_interrupt(
     Returns:
         InfoCollectionState ready for processing
     """
-    return {
-        "missing_info": interrupt_data.get("missing_info", []),
-        "user_id": interrupt_data.get("user_id", ""),
-        "full_resume": interrupt_data.get("full_resume", ""),
-        "messages": [],
-        "final_collected_info": None,
-        "updated_full_resume": None,
-        "conversation_complete": False,
-    }
+    return InfoCollectionState(
+        missing_info=interrupt_data.get("missing_info", []),
+        user_id=interrupt_data.get("user_id", ""),
+        full_resume=interrupt_data.get("full_resume", ""),
+    )
 
 
 def create_info_collection_state(
@@ -88,12 +89,8 @@ def create_info_collection_state(
         # Fallback to treating it as a simple list
         missing_info = [missing_info_requirements] if missing_info_requirements else []
 
-    return {
-        "missing_info": missing_info,
-        "user_id": user_id,
-        "full_resume": full_resume,
-        "messages": [],
-        "final_collected_info": None,
-        "updated_full_resume": None,
-        "conversation_complete": False,
-    }
+    return InfoCollectionState(
+        missing_info=missing_info,
+        user_id=user_id,
+        full_resume=full_resume,
+    )

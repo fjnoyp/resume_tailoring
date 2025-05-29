@@ -1,7 +1,7 @@
 """
 Job Analysis Node
 
-Analyzes job descriptions to extract company strategy, requirements, and hiring psychology.
+Analyzes job descriptions to extract hiring strategy and requirements.
 Pure data processing - no file I/O.
 """
 
@@ -19,51 +19,56 @@ logging.basicConfig(level=logging.DEBUG)
 
 async def job_analyzer(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
     """
-    Analyzes job description to extract company strategy and requirements.
+    Analyzes job posting to understand company hiring strategy and requirements.
 
     Input: job_description (loaded by data_loader)
-    Output: job_strategy (strategic analysis document)
+    Output: job_strategy (strategic analysis and company insights)
 
     Args:
-        state: Graph state with job_description loaded
+        state: Graph state containing job description
         config: LangChain runnable config
 
     Returns:
         Dictionary with job_strategy or error state
     """
     try:
-        # Validate required fields
-        error_msg = validate_fields(state, ["job_description"], "analysis")
+        # Validate required fields using dot notation
+        error_msg = validate_fields(state, ["job_description"], "job analysis")
         if error_msg:
             return {"error": error_msg}
 
-        # Extract fields
-        user_id = state["user_id"]
-        job_id = state["job_id"]
-        job_description = state["job_description"]
+        # Extract fields using type-safe dot notation
+        user_id = state.user_id
+        job_id = state.job_id
+        job_description = state.job_description
 
         # Setup metadata
         setup_metadata(config, "job_analyzer", user_id, job_id)
 
         prompt = f"""
-You are an expert in recruitment strategy and organizational psychology.
+You are a strategic analyst helping someone understand a company's hiring priorities.
 
-Analyze the job description below and extract the underlying company requirements, strategy, and recruiter psychology. Go beyond the surface to infer the psychology, motivations, and priorities of the company and its recruiters.
+Analyze this job posting and provide a comprehensive strategic analysis:
 
-Create a strategic analysis document that includes:
-- Company's core requirements and expectations for the role
-- Insights into company culture, values, and what they truly seek in candidates
-- Likely priorities and pain points of recruiters and hiring managers  
-- Implicit or unwritten requirements you can infer
-- Recommendations for how candidates can best align with company needs
+1. **Company Culture & Values**: What values and culture does this company prioritize?
 
-Output only markdown.
+2. **Key Requirements**: What are the must-have vs nice-to-have qualifications?
+
+3. **Success Metrics**: How does this company likely measure success in this role?
+
+4. **Hiring Priorities**: What type of candidate are they really looking for beyond the obvious requirements?
+
+5. **Decision Makers**: Who likely makes the hiring decision and what would impress them?
+
+6. **Competitive Advantage**: What would make a candidate stand out for this specific role?
+
+Provide actionable insights that help understand the company's hiring strategy.
 
 JOB_DESCRIPTION:
 {job_description}
 """
 
-        # Generate analysis
+        # Generate job strategy using simple model call
         response = await model.ainvoke(prompt, config=config)
         job_strategy = response.content
 

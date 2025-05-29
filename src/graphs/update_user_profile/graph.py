@@ -10,9 +10,11 @@ Uses StateStorageManager for unified state management.
 """
 
 from langgraph.graph import StateGraph, START, END
-from src.graphs.update_user_profile.nodes.update_user_full_resume import resume_updater
-from src.graphs.update_user_profile.nodes.parse_linkedin_profile import linkedin_parser
-from src.graphs.update_user_profile.nodes.parse_file_to_markdown import file_parser
+from src.graphs.update_user_profile.nodes.resume_updater import resume_updater
+from src.graphs.update_user_profile.nodes.parse_linkedin_profile import (
+    parse_linkedin_profile,
+)
+from src.graphs.update_user_profile.nodes.file_parser import file_parser
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
 from src.tools.state_storage_manager import load_user_profile_data
 
@@ -24,7 +26,8 @@ async def initialize_profile_state(state: UpdateUserProfileState, config) -> dic
     Replaces the old data_loader node with unified state management.
     """
     try:
-        user_id = state["user_id"]
+        # Extract user_id using dot notation
+        user_id = state.user_id
 
         # Add metadata for tracing
         config["metadata"] = {
@@ -54,7 +57,7 @@ def create_update_user_profile_graph() -> StateGraph:
     1. initialize_profile_state: Load current full resume using StateStorageManager
     2. Route based on operation_mode:
        - "update_resume": Direct to resume_updater
-       - "parse_linkedin": linkedin_parser → resume_updater
+       - "parse_linkedin": parse_linkedin_profile → resume_updater
        - "parse_file": file_parser → resume_updater
     3. resume_updater: Merge content and save updated resume
 
@@ -67,7 +70,7 @@ def create_update_user_profile_graph() -> StateGraph:
     # Add nodes
     graph_builder.add_node("initialize_profile_state", initialize_profile_state)
     graph_builder.add_node("resume_updater", resume_updater)
-    graph_builder.add_node("linkedin_parser", linkedin_parser)
+    graph_builder.add_node("parse_linkedin_profile", parse_linkedin_profile)
     graph_builder.add_node("file_parser", file_parser)
 
     # Start with state initialization
@@ -76,14 +79,14 @@ def create_update_user_profile_graph() -> StateGraph:
     # Route based on operation mode after state initialization
     def route_by_operation_mode(state: UpdateUserProfileState) -> str:
         """Route to appropriate processing node based on operation mode"""
-        if state.get("error"):
+        if state.error:
             return END
 
-        operation_mode = state["operation_mode"]
+        operation_mode = state.operation_mode
         if operation_mode == "update_resume":
             return "resume_updater"
         elif operation_mode == "parse_linkedin":
-            return "linkedin_parser"
+            return "parse_linkedin_profile"
         elif operation_mode == "parse_file":
             return "file_parser"
         else:
@@ -94,14 +97,14 @@ def create_update_user_profile_graph() -> StateGraph:
         route_by_operation_mode,
         {
             "resume_updater": "resume_updater",
-            "linkedin_parser": "linkedin_parser",
+            "parse_linkedin_profile": "parse_linkedin_profile",
             "file_parser": "file_parser",
             END: END,
         },
     )
 
     # Route parsed content to resume update
-    graph_builder.add_edge("linkedin_parser", "resume_updater")
+    graph_builder.add_edge("parse_linkedin_profile", "resume_updater")
     graph_builder.add_edge("file_parser", "resume_updater")
 
     # End after resume update

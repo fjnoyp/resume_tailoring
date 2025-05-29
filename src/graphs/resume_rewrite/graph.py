@@ -26,8 +26,9 @@ async def initialize_state(state: GraphState, config) -> dict:
     Replaces the old data_loader node with unified state management.
     """
     try:
-        user_id = state["user_id"]
-        job_id = state["job_id"]
+        # Extract fields using dot notation
+        user_id = state.user_id
+        job_id = state.job_id
 
         # Add metadata for tracing
         config["metadata"] = {
@@ -83,3 +84,6 @@ def create_graph() -> StateGraph:
 
 # Create the main graph instance
 graph = create_graph()
+
+# Also create with the expected name for compatibility
+resume_rewrite_graph = graph

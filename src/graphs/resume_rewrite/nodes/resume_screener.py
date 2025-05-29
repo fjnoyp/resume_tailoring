@@ -32,19 +32,19 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> Dict[str
         Dictionary with recruiter_feedback or error state
     """
     try:
-        # Validate required fields
+        # Validate required fields using dot notation
         error_msg = validate_fields(
             state, ["original_resume", "job_description", "job_strategy"], "screening"
         )
         if error_msg:
             return {"error": error_msg}
 
-        # Extract fields
-        user_id = state["user_id"]
-        job_id = state["job_id"]
-        original_resume = state["original_resume"]
-        job_description = state["job_description"]
-        job_strategy = state["job_strategy"]
+        # Extract fields using type-safe dot notation
+        user_id = state.user_id
+        job_id = state.job_id
+        original_resume = state.original_resume
+        job_description = state.job_description
+        job_strategy = state.job_strategy
 
         # Setup metadata
         setup_metadata(config, "resume_screener", user_id, job_id)
