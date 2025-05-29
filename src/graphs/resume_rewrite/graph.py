@@ -2,11 +2,12 @@
 Main Resume Tailoring Graph
 
 Clean, linear pipeline for resume tailoring with unified state management:
-START → job_analyzer → resume_screener → resume_tailorer → END
+START → initialize_state → job_analyzer → resume_screener → resume_tailorer → END
 
 Uses StateStorageManager for cohesive state loading/saving operations.
 """
 
+import os
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from src.graphs.resume_rewrite.state import GraphState, set_error
@@ -56,7 +57,7 @@ def create_graph() -> StateGraph:
     1. initialize_state: Load ALL files using StateStorageManager
     2. job_analyzer: Analyzes job to extract company strategy and requirements
     3. resume_screener: Evaluates resume from recruiter perspective
-    4. resume_tailorer: Tailors resume using all analysis results
+    4. resume_tailorer: Analyzes missing info and generates tailored resume
 
     Returns:
         Compiled LangGraph ready for execution with checkpointer for interrupts
@@ -77,9 +78,7 @@ def create_graph() -> StateGraph:
     graph_builder.add_edge("resume_screener", "resume_tailorer")
     graph_builder.add_edge("resume_tailorer", END)
 
-    # Compile with checkpointer (required for interrupts)
-    checkpointer = MemorySaver()
-    return graph_builder.compile(checkpointer=checkpointer)
+    return graph_builder.compile()
 
 
 # Create the main graph instance

@@ -5,6 +5,7 @@
     "graphs": {
         "test_graph": "src.graphs.test_graph:test_graph",
         "resume_rewrite": "src.graphs.resume_rewrite.graph:graph",
+        "info_collection": "src.graphs.info_collection.graph:info_collection_graph",
         "update_user_profile": "src.graphs.update_user_profile.graph:update_user_profile_graph"
     },
     "env": ".env"

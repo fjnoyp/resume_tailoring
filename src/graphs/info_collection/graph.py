@@ -1,72 +1,61 @@
 """
 Info Collection Subgraph
 
-Manages conversations with users to collect missing resume information.
+Conversational agent flow for collecting missing resume information.
 """
 
 from langgraph.graph import StateGraph, START, END
 from .state import InfoCollectionState
-from .nodes import conversation_starter, question_asker, info_formatter, should_continue
+from .nodes import (
+    conversation_starter,
+    conversation_agent,
+    update_resume,
+    should_continue,
+)
 
 
 def create_info_collection_graph() -> StateGraph:
     """
-    Creates the info collection subgraph for user conversations.
+    Creates the conversational info collection subgraph.
 
     Flow:
-    1. conversation_starter: Parse requirements and ask first question
-    2. question_asker: Handle conversation flow and user responses
-    3. info_formatter: Format collected information for main graph
-
-    Uses conditional routing to manage conversation state.
+    1. conversation_starter: Sets up context about missing info
+    2. conversation_agent: React agent handles back-and-forth conversation
+    3. update_resume: Formats collected info and updates full resume via update_user_profile
 
     Returns:
         Compiled LangGraph for info collection
     """
-    # Create subgraph with conversation state
+    # Create subgraph with conversational state
     graph_builder = StateGraph(InfoCollectionState)
 
-    # Add conversation nodes
+    # Add nodes
     graph_builder.add_node("conversation_starter", conversation_starter)
-    graph_builder.add_node("question_asker", question_asker)
-    graph_builder.add_node("info_formatter", info_formatter)
+    graph_builder.add_node("conversation_agent", conversation_agent)
+    graph_builder.add_node("update_resume", update_resume)
 
-    # Start with routing logic
-    graph_builder.add_conditional_edges(
-        START,
-        should_continue,
-        {
-            "conversation_starter": "conversation_starter",
-            "question_asker": "question_asker",
-            "info_formatter": "info_formatter",
-            "END": END,
-        },
-    )
+    # Routing
+    graph_builder.add_edge(START, "conversation_starter")
 
-    # Route from conversation_starter
     graph_builder.add_conditional_edges(
         "conversation_starter",
         should_continue,
         {
-            "question_asker": "question_asker",
-            "info_formatter": "info_formatter",
-            "END": END,
+            "conversation_agent": "conversation_agent",
+            "update_resume": "update_resume",
         },
     )
 
-    # Route from question_asker (main conversation loop)
     graph_builder.add_conditional_edges(
-        "question_asker",
+        "conversation_agent",
         should_continue,
         {
-            "question_asker": "question_asker",
-            "info_formatter": "info_formatter",
-            "END": END,
+            "conversation_agent": "conversation_agent",
+            "update_resume": "update_resume",
         },
     )
 
-    # Route from info_formatter
-    graph_builder.add_edge("info_formatter", END)
+    graph_builder.add_edge("update_resume", END)
 
     return graph_builder.compile()
 
