@@ -7,9 +7,7 @@ Simulates the real workflow with predictable responses.
 
 import asyncio
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
 import logging
-import json
 
 from src.graphs.resume_rewrite.state import GraphState
 from src.graphs.info_collection.state import InfoCollectionState
@@ -108,7 +106,15 @@ def should_continue(state: InfoCollectionState) -> str:
 
 async def mock_info_collector_agent(state: InfoCollectionState, config):
     """Mock info collector agent - simulates conversational information gathering"""
-    print(f"[DEBUG] Calling mock info collector agent with state keys: {list(state.model_dump().keys())}")
+    # Handle both Pydantic models and regular dicts
+    if hasattr(state, 'model_dump'):
+        state_dict = state.model_dump()
+        state_keys = list(state_dict.keys())
+    else:
+        state_dict = state
+        state_keys = list(state.keys())
+    
+    print(f"[DEBUG] Calling mock info collector agent with state keys: {state_keys}")
     
     # Simulate processing time
     await asyncio.sleep(2)
@@ -116,34 +122,53 @@ async def mock_info_collector_agent(state: InfoCollectionState, config):
     from langchain_core.messages import AIMessage, HumanMessage
     
     # Check if conversation should be terminated
-    if state.conversation_complete:
+    if state_dict.get('conversation_complete', False):
         return {}
     
-    messages = state.messages or []
-    missing_info = state.missing_info or []
+    messages = state_dict.get('messages', [])
+    missing_info = state_dict.get('missing_info', [])
     
-    # Start conversation - introduce purpose
-    if not messages:
+    # Determine next action based on total message count and last message type
+    message_count = len(messages)
+    last_message = messages[-1] if messages else None
+    
+    # START: No messages yet - initiate conversation
+    if message_count == 0:
         missing_info_text = ", ".join(missing_info) if missing_info else "additional resume information"
-        
         response_text = f"""Hi! I'm here to help gather some missing information for your resume.
 
 I need to collect the following:
 {missing_info_text}
 
 Let's start with the first item. Can you tell me about your specific backend technologies and frameworks experience? Please include details about Node.js, Python, databases, and any other relevant technologies you've worked with."""
-
+        
         ai_message = AIMessage(content=response_text)
         return {"messages": [ai_message]}
     
-    # Get the last message
-    last_message = messages[-1] if messages else None
+    # Helper function to check if message is from user
+    def is_user_message(msg):
+        if isinstance(msg, HumanMessage):
+            return True
+        elif isinstance(msg, dict):
+            return msg.get('type') == 'human'
+        return False
     
-    # Check if user wants to end conversation
-    if last_message and isinstance(last_message, HumanMessage):
-        if any(phrase in last_message.content.lower() for phrase in ["done", "finished", "that's all", "complete"]):
+    # Helper function to get message content
+    def get_message_content(msg):
+        if isinstance(msg, (HumanMessage, AIMessage)):
+            return msg.content
+        elif isinstance(msg, dict):
+            return msg.get('content', '')
+        return ''
+    
+    # Check if last message is from user - generate AI response
+    if is_user_message(last_message):
+        user_content = get_message_content(last_message)
+        
+        # Check for conversation end signals
+        if any(phrase in user_content.lower() for phrase in ["done", "finished", "that's all", "complete"]):
             # Extract collected info from conversation
-            user_messages = [msg.content for msg in messages if isinstance(msg, HumanMessage)]
+            user_messages = [get_message_content(msg) for msg in messages if is_user_message(msg)]
             collected_info = f"""
 ## Backend Technologies & Frameworks
 {user_messages[0] if len(user_messages) > 0 else "Node.js, Python Flask, PostgreSQL, Redis"}
@@ -163,30 +188,26 @@ Let's start with the first item. Can you tell me about your specific backend tec
                 "final_collected_info": collected_info,
                 "conversation_complete": True,
             }
-    
-    # Continue conversation based on how many questions we've asked
-    user_responses = [msg for msg in messages if isinstance(msg, HumanMessage)]
-    question_count = len(user_responses)
-    
-    if question_count == 0:
-        # First question already asked above
-        return {"messages": messages}
-    elif question_count == 1:
-        response_text = """Great! Thank you for that technical background. 
+        
+        # Count user messages to determine which question to ask next
+        user_message_count = len([msg for msg in messages if is_user_message(msg)])
+        
+        if user_message_count == 1:
+            # First user response - ask about leadership
+            response_text = f"""Great! I see you mentioned "{user_content}". That's excellent technical background.
 
 Now I'd like to learn about your leadership experience. Can you tell me about times when you've led development teams, mentored other developers, or managed technical projects? Please include specific examples and any measurable outcomes."""
-        ai_message = AIMessage(content=response_text)
-        return {"messages": [ai_message]}
-    elif question_count == 2:
-        response_text = """Excellent leadership background! 
+            
+        elif user_message_count == 2:
+            # Second user response - ask about achievements
+            response_text = f"""Excellent leadership background! I can see you have solid experience with "{user_content}".
 
 Finally, I'd like to gather some quantifiable achievements that demonstrate your impact. Can you share specific metrics about performance improvements, system optimizations, cost savings, or other measurable results from your work?"""
-        ai_message = AIMessage(content=response_text)
-        return {"messages": [ai_message]}
-    else:
-        # End conversation after 3 questions
-        user_messages = [msg.content for msg in messages if isinstance(msg, HumanMessage)]
-        collected_info = f"""
+            
+        else:  # user_message_count >= 3
+            # Third user response - end conversation
+            user_messages = [get_message_content(msg) for msg in messages if is_user_message(msg)]
+            collected_info = f"""
 ## Backend Technologies & Frameworks
 {user_messages[0]}
 
@@ -196,15 +217,22 @@ Finally, I'd like to gather some quantifiable achievements that demonstrate your
 ## Quantifiable Achievements
 {user_messages[2]}
 """
+            
+            response_text = f"""Perfect! Thank you for sharing "{user_content}". I've collected all the information needed. Your resume will be updated with these details shortly."""
+            
+            ai_message = AIMessage(content=response_text)
+            return {
+                "messages": [ai_message],
+                "final_collected_info": collected_info,
+                "conversation_complete": True,
+            }
         
-        farewell_text = "Perfect! I've collected all the information needed. Your resume will be updated with these details shortly."
-        ai_message = AIMessage(content=farewell_text)
-        
-        return {
-            "messages": [ai_message],
-            "final_collected_info": collected_info,
-            "conversation_complete": True,
-        }
+        # Generate new AI response
+        ai_message = AIMessage(content=response_text)
+        return {"messages": [ai_message]}
+    
+    # If last message is AI message, wait for user response (no action needed)
+    return {}
 
 
 async def mock_update_resume_with_collected_info(state: InfoCollectionState, config):
@@ -275,8 +303,8 @@ def create_test_graph() -> StateGraph:
     graph_builder.add_edge("resume_tailorer", END)
 
     # Compile with checkpointer (matching real implementation)
-    checkpointer = MemorySaver()
-    return graph_builder.compile(checkpointer=checkpointer)
+    # checkpointer = MemorySaver()
+    return graph_builder.compile() #checkpointer=checkpointer)
 
 
 def create_test_info_collection_graph() -> StateGraph:
@@ -300,7 +328,7 @@ def create_test_info_collection_graph() -> StateGraph:
         "info_collector_agent",
         should_continue,
         {
-            "info_collector_agent": "info_collector_agent",
+            "info_collector_agent": END,
             "update_resume_with_collected_info": "update_resume_with_collected_info",
         },
     )
@@ -308,8 +336,8 @@ def create_test_info_collection_graph() -> StateGraph:
     graph_builder.add_edge("update_resume_with_collected_info", END)
 
     # Compile with checkpointer for consistency
-    checkpointer = MemorySaver()
-    return graph_builder.compile(checkpointer=checkpointer)
+    # checkpointer = MemorySaver()
+    return graph_builder.compile() #checkpointer=checkpointer)
 
 
 # Create test graph instances (matching real graph names)

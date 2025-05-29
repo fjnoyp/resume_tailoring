@@ -57,7 +57,7 @@ def create_info_collection_graph() -> StateGraph:
         "info_collector_agent",
         should_continue,
         {
-            "info_collector_agent": "info_collector_agent",
+            "info_collector_agent": END, # We route to end to prevent infinite loops and properly wait for the user to respond
             "update_resume_with_collected_info": "update_resume_with_collected_info",
         },
     )

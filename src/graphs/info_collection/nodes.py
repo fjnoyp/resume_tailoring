@@ -8,13 +8,22 @@ import logging
 import json
 from typing import Dict, Any, List
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from src.llm_config import model
 from src.graphs.info_collection.state import InfoCollectionState
 from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+def is_user_message(msg):
+    """Helper function to check if message is from user"""
+    if isinstance(msg, HumanMessage):
+        return True
+    elif isinstance(msg, dict):
+        return msg.get('type') == 'human'
+    return msg.type == "human" if hasattr(msg, 'type') else False
 
 
 async def info_collector_agent(
@@ -75,8 +84,8 @@ Let's start with the first item. Can you tell me about: {missing_info[0] if miss
         # Continue conversation - analyze last user message
         last_message = messages[-1]
 
-        # Check if user wants to end conversation
-        if any(
+        # Only process termination signals from user messages
+        if is_user_message(last_message) and any(
             phrase in last_message.content.lower()
             for phrase in ["done", "finished", "that's all", "complete"]
         ):
@@ -91,6 +100,10 @@ Let's start with the first item. Can you tell me about: {missing_info[0] if miss
                 "final_collected_info": collected_info,
                 "conversation_complete": True,
             }
+
+        # # Only generate response if last message is from user (maintain proper conversation flow)
+        # if not is_user_message(last_message):
+        #     return {}  # Wait for user input
 
         # Generate contextual response
         context_prompt = f"""
