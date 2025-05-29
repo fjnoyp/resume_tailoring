@@ -14,6 +14,7 @@ from langgraph.prebuilt import create_react_agent
 from src.llm_config import model
 from src.graphs.update_user_profile.graph import update_user_profile_graph
 from src.graphs.update_user_profile.state import create_update_profile_state
+from src.utils.node_utils import validate_fields, setup_metadata, handle_error
 from .state import InfoCollectionState
 
 logging.basicConfig(level=logging.DEBUG)
@@ -77,6 +78,13 @@ async def conversation_starter(
                 "final_collected_info": "No additional information needed",
             }
 
+        # Setup metadata if user_id available
+        user_id = state.get("user_id")
+        if user_id:
+            setup_metadata(
+                config, "conversation_starter", user_id, graph="info_collection"
+            )
+
         # Create detailed context message about missing information
         missing_info_text = "\n".join([f"- {item}" for item in missing_info])
 
@@ -90,8 +98,7 @@ Please collect information about these specific areas from the user. Start with 
         return {"messages": [context_message]}
 
     except Exception as e:
-        logging.error(f"Error in conversation_starter: {e}")
-        raise Exception(f"Failed to start conversation: {str(e)}")
+        return handle_error(e, "conversation_starter")
 
 
 async def update_resume(
@@ -108,9 +115,20 @@ async def update_resume(
         Final state with formatted info and updated resume
     """
     try:
+        # Validate required fields
+        error_msg = validate_fields(
+            state, ["user_id", "messages", "missing_info"], "update"
+        )
+        if error_msg:
+            return {"error": error_msg}
+
+        # Extract fields
+        user_id = state["user_id"]
         messages = state["messages"]
         missing_info = state["missing_info"]
-        user_id = state["user_id"]
+
+        # Setup metadata
+        setup_metadata(config, "update_resume", user_id, graph="info_collection")
 
         # Extract full conversation (excluding system messages)
         conversation_parts = []
@@ -122,7 +140,7 @@ async def update_resume(
         if not conversation_parts:
             return {
                 "final_collected_info": "No information collected",
-                "updated_full_resume": state["full_resume"],
+                "updated_full_resume": state.get("full_resume", ""),
             }
 
         # Create targeted summary that maps collected info to missing areas
@@ -169,10 +187,12 @@ Output in clear markdown format with sections for each missing area.
 
         if update_result.get("error"):
             logging.warning(f"Failed to update full resume: {update_result['error']}")
-            updated_full_resume = state["full_resume"]  # Use current if update failed
+            updated_full_resume = state.get(
+                "full_resume", ""
+            )  # Use current if update failed
         else:
             updated_full_resume = update_result.get(
-                "updated_full_resume", state["full_resume"]
+                "updated_full_resume", state.get("full_resume", "")
             )
             logging.info(f"[DEBUG] Full resume updated by update_user_profile graph")
 
@@ -182,8 +202,7 @@ Output in clear markdown format with sections for each missing area.
         }
 
     except Exception as e:
-        logging.error(f"Error in update_resume: {e}")
-        raise Exception(f"Failed to update resume: {str(e)}")
+        return handle_error(e, "update_resume")
 
 
 def should_continue(state: InfoCollectionState) -> str:

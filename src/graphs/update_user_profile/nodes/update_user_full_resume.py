@@ -12,6 +12,7 @@ from langchain_core.runnables import RunnableConfig
 from src.llm_config import model
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
 from src.tools.state_storage_manager import save_processing_result
+from src.utils.node_utils import setup_profile_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -33,6 +34,7 @@ async def resume_updater(
         Dictionary with updated_full_resume or error state
     """
     try:
+        # Extract fields
         user_id = state["user_id"]
         input_data = state["input_data"]
         current_full_resume = state["current_full_resume"] or ""
@@ -41,15 +43,10 @@ async def resume_updater(
         content_to_merge = state.get("parsed_content", input_data)
 
         if not content_to_merge:
-            return set_error("No content available to merge into resume")
+            return {"error": "No content available to merge into resume"}
 
-        # Add metadata for tracing
-        config["metadata"] = {
-            **config.get("metadata", {}),
-            "user_id": user_id,
-            "node": "resume_updater",
-            "graph": "update_user_profile",
-        }
+        # Setup metadata
+        setup_profile_metadata(config, "resume_updater", user_id)
 
         prompt = f"""
 You are a professional resume writer tasked with updating a user's comprehensive resume.
@@ -101,5 +98,4 @@ IMPORTANT: Return ONLY the markdown content. Do not include any explanations, co
         return {"updated_full_resume": updated_full_resume}
 
     except Exception as e:
-        logging.error(f"[DEBUG] Error in resume_updater: {e}")
-        return set_error(f"Resume update failed: {str(e)}")
+        return handle_error(e, "resume_updater")

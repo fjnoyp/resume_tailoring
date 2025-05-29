@@ -11,6 +11,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.tools.mcp_agent import invoke_mcp_agent, linkedin_server_params
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
+from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -32,18 +33,19 @@ async def linkedin_parser(
         Dictionary with parsed_content or error state
     """
     try:
+        # Validate required fields
+        error_msg = validate_fields(state, ["input_data"], "LinkedIn parsing")
+        if error_msg:
+            return {"error": error_msg}
+
+        # Extract fields
+        user_id = state["user_id"]
         linkedin_url = state["input_data"]
 
-        if not linkedin_url:
-            return set_error("No LinkedIn URL provided for parsing")
-
-        # Add metadata for tracing
-        config["metadata"] = {
-            **config.get("metadata", {}),
-            "linkedin_url": linkedin_url,
-            "node": "linkedin_parser",
-            "graph": "update_user_profile",
-        }
+        # Setup metadata
+        setup_profile_metadata(
+            config, "linkedin_parser", user_id, linkedin_url=linkedin_url
+        )
 
         messages = [
             {
@@ -94,5 +96,4 @@ Return ONLY the properly formatted markdown content. Do not include any explanat
         return {"parsed_content": parsed_content}
 
     except Exception as e:
-        logging.error(f"[DEBUG] Error in linkedin_parser: {e}")
-        return set_error(f"LinkedIn parsing failed: {str(e)}")
+        return handle_error(e, "linkedin_parser")

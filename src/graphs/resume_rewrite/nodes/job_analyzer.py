@@ -12,6 +12,7 @@ from langchain_core.runnables import RunnableConfig
 from src.llm_config import model
 from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
+from src.utils.node_utils import validate_fields, setup_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -31,20 +32,18 @@ async def job_analyzer(state: GraphState, config: RunnableConfig) -> Dict[str, A
         Dictionary with job_strategy or error state
     """
     try:
+        # Validate required fields
+        error_msg = validate_fields(state, ["job_description"], "analysis")
+        if error_msg:
+            return {"error": error_msg}
+
+        # Extract fields
         user_id = state["user_id"]
         job_id = state["job_id"]
         job_description = state["job_description"]
 
-        if not job_description:
-            return set_error("Job description not available for analysis")
-
-        # Add metadata for tracing
-        config["metadata"] = {
-            **config.get("metadata", {}),
-            "user_id": user_id,
-            "job_id": job_id,
-            "node": "job_analyzer",
-        }
+        # Setup metadata
+        setup_metadata(config, "job_analyzer", user_id, job_id)
 
         prompt = f"""
 You are an expert in recruitment strategy and organizational psychology.
@@ -76,5 +75,4 @@ JOB_DESCRIPTION:
         return {"job_strategy": job_strategy}
 
     except Exception as e:
-        logging.error(f"[DEBUG] Error in job_analyzer: {e}")
-        return set_error(f"Job analysis failed: {str(e)}")
+        return handle_error(e, "job_analyzer")

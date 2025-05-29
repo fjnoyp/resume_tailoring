@@ -12,6 +12,7 @@ from langchain_core.runnables import RunnableConfig
 from src.llm_config import model
 from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
+from src.utils.node_utils import validate_fields, setup_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -31,30 +32,22 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> Dict[str
         Dictionary with recruiter_feedback or error state
     """
     try:
+        # Validate required fields
+        error_msg = validate_fields(
+            state, ["original_resume", "job_description", "job_strategy"], "screening"
+        )
+        if error_msg:
+            return {"error": error_msg}
+
+        # Extract fields
         user_id = state["user_id"]
         job_id = state["job_id"]
         original_resume = state["original_resume"]
         job_description = state["job_description"]
         job_strategy = state["job_strategy"]
 
-        # Validate required inputs
-        required_fields = {
-            "original_resume": original_resume,
-            "job_description": job_description,
-            "job_strategy": job_strategy,
-        }
-
-        for field_name, field_value in required_fields.items():
-            if not field_value:
-                return set_error(f"{field_name} not available for screening")
-
-        # Add metadata for tracing
-        config["metadata"] = {
-            **config.get("metadata", {}),
-            "user_id": user_id,
-            "job_id": job_id,
-            "node": "resume_screener",
-        }
+        # Setup metadata
+        setup_metadata(config, "resume_screener", user_id, job_id)
 
         prompt = f"""
 You are a professional recruiter evaluating candidates for a specific role.
@@ -95,5 +88,4 @@ STRATEGIC_ANALYSIS:
         return {"recruiter_feedback": recruiter_feedback}
 
     except Exception as e:
-        logging.error(f"[DEBUG] Error in resume_screener: {e}")
-        return set_error(f"Resume screening failed: {str(e)}")
+        return handle_error(e, "resume_screener")

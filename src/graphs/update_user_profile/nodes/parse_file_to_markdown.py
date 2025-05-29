@@ -13,6 +13,7 @@ from src.tools.state_storage_manager import StateStorageManager
 from src.tools.parse_pdf_tool import parse_pdf
 from src.llm_config import model
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
+from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -34,22 +35,18 @@ async def file_parser(
         Dictionary with parsed_content or error state
     """
     try:
-        file_names_str = state["input_data"]
+        # Validate required fields
+        error_msg = validate_fields(state, ["input_data"], "parsing")
+        if error_msg:
+            return {"error": error_msg}
+
+        # Extract fields
         user_id = state["user_id"]
-
-        if not file_names_str:
-            return set_error("No file names provided for parsing")
-
+        file_names_str = state["input_data"]
         file_names = [name.strip() for name in file_names_str.split(",")]
 
-        # Add metadata for tracing
-        config["metadata"] = {
-            **config.get("metadata", {}),
-            "file_names": file_names,
-            "user_id": user_id,
-            "node": "file_parser",
-            "graph": "update_user_profile",
-        }
+        # Setup metadata
+        setup_profile_metadata(config, "file_parser", user_id, file_names=file_names)
 
         # Read all files content using StateStorageManager
         all_content = []
@@ -72,7 +69,7 @@ async def file_parser(
             all_content.append(f"Content from {file_name}:\n{file_content}")
 
         if not all_content:
-            return set_error("No valid file content found to parse")
+            return {"error": "No valid file content found to parse"}
 
         combined_content = "\n\n---\n\n".join(all_content)
 
@@ -123,5 +120,4 @@ Return ONLY the properly formatted markdown content. Do not include any explanat
         return {"parsed_content": parsed_content}
 
     except Exception as e:
-        logging.error(f"[DEBUG] Error in file_parser: {e}")
-        return set_error(f"File parsing failed: {str(e)}")
+        return handle_error(e, "file_parser")

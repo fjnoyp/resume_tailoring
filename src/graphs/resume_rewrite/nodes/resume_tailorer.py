@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from src.llm_config import model
 from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
+from src.utils.node_utils import validate_fields, setup_metadata, handle_error
 from langgraph.types import interrupt
 
 logging.basicConfig(level=logging.DEBUG)
@@ -69,6 +70,19 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
         Dictionary with tailored_resume and updated missing_info
     """
     try:
+        # Validate required fields
+        required = [
+            "original_resume",
+            "full_resume",
+            "job_description",
+            "job_strategy",
+            "recruiter_feedback",
+        ]
+        error_msg = validate_fields(state, required, "tailoring")
+        if error_msg:
+            return {"error": error_msg}
+
+        # Extract fields
         user_id = state["user_id"]
         job_id = state["job_id"]
         original_resume = state["original_resume"]
@@ -77,26 +91,8 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
         job_strategy = state["job_strategy"]
         recruiter_feedback = state["recruiter_feedback"]
 
-        # Validate required inputs
-        required_fields = {
-            "original_resume": original_resume,
-            "full_resume": full_resume,
-            "job_description": job_description,
-            "job_strategy": job_strategy,
-            "recruiter_feedback": recruiter_feedback,
-        }
-
-        for field_name, field_value in required_fields.items():
-            if not field_value:
-                return set_error(f"{field_name} not available for resume tailoring")
-
-        # Add metadata for tracing
-        config["metadata"] = {
-            **config.get("metadata", {}),
-            "user_id": user_id,
-            "job_id": job_id,
-            "node": "resume_tailorer",
-        }
+        # Setup metadata
+        setup_metadata(config, "resume_tailorer", user_id, job_id)
 
         # Initialize with current full resume
         additional_info = ""
@@ -226,5 +222,4 @@ Return both the missing info analysis and the tailored resume.
         }
 
     except Exception as e:
-        logging.error(f"[DEBUG] Error in resume_tailorer: {e}")
-        return set_error(f"Resume tailoring failed: {str(e)}")
+        return handle_error(e, "resume_tailorer")
