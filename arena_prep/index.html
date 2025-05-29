@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Weekly Intelligence Briefing</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="presentation-container">
+        <!-- Title Slide -->
+        <section class="slide active" id="slide-1">
+            <div class="slide-content">
+                <h1 class="main-title">AI Intelligence Briefing</h1>
+                <h2 class="subtitle">Strategic Developments in Artificial Intelligence</h2>
+                <p class="date">Week of May 29, 2025</p>
+                <div class="key-theme">
+                    <p class="theme-text">2025 marks the transition from AI experimentation to AI implementation with measurable ROI - particularly in agentic workflows and enterprise automation.</p>
+                </div>
+                <button class="start-button" onclick="nextSlide()">Begin Presentation →</button>
+            </div>
+        </section>
+
+        <!-- Overview Slide -->
+        <section class="slide" id="slide-2">
+            <div class="slide-content">
+                <h2>This Week's Critical Developments</h2>
+                <div class="overview-grid">
+                    <div class="overview-item">
+                        <h3>1. Foundation Models Revolution</h3>
+                        <p>Claude 4 demonstrates 7-hour autonomous coding capability while Microsoft transforms Windows into an agentic OS</p>
+                    </div>
+                    <div class="overview-item">
+                        <h3>2. AI Agents Reach Maturity</h3>
+                        <p>Browser control agents achieve 95%+ reliability for enterprise tasks with measurable ROI</p>
+                    </div>
+                    <div class="overview-item">
+                        <h3>3. Scientific Breakthroughs</h3>
+                        <p>AI co-scientists validate drug discoveries and first clinical trial proves AI therapy effectiveness</p>
+                    </div>
+                    <div class="overview-item">
+                        <h3>4. PE Investment Evolution</h3>
+                        <p>New AI roll-up strategy emerges as firms acquire traditional businesses for AI transformation</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Claude 4 Slide -->
+        <section class="slide" id="slide-3">
+            <div class="slide-content">
+                <h2>Claude 4: The 7-Hour Autonomous Coder</h2>
+                
+                <div class="intro-section">
+                    <p>On May 22, 2025, <a href="https://www.anthropic.com/news/claude-4" target="_blank">Anthropic launched Claude Opus 4 and Sonnet 4</a>, with Opus 4 achieving a record 72.5% on SWE-bench coding benchmarks - a massive leap in AI capability.</p>
+                </div>
+
+                <div class="importance-section">
+                    <h3>Why This Changes Everything</h3>
+                    <ul>
+                        <li><strong>Marathon Performance:</strong> <a href="https://venturebeat.com/ai/anthropic-claude-opus-4-can-code-for-7-hours-straight-and-its-about-to-change-how-we-work-with-ai/" target="_blank">Rakuten validated Opus 4 running a complex open-source refactor for nearly 7 hours autonomously</a> - transforming AI from a quick-response tool to a day-long collaborator.</li>
+                        <li><strong>Memory Integration:</strong> When given access to local files, <a href="https://www.anthropic.com/news/claude-4" target="_blank">Opus 4 creates and maintains 'memory files' to store key information</a>, building tacit knowledge over time.</li>
+                        <li><strong>Tool-Integrated Reasoning:</strong> <a href="https://techcrunch.com/2025/05/22/anthropics-new-claude-4-ai-models-can-reason-over-many-steps/" target="_blank">Both models can use tools like web search during extended thinking</a>, alternating between reasoning and tool use.</li>
+                    </ul>
+                </div>
+
+                <div class="demo-summary">
+                    <h3>Demo: Autonomous Code Refactoring</h3>
+                    <p>Live demonstration showing Claude 4 refactoring a 20+ component React application from class-based to functional components, creating memory files to track progress over a multi-hour session.</p>
+                    <span class="demo-note">Full demo instructions in claude4-demo.md</span>
+                </div>
+
+                <button class="expand-button" onclick="toggleDeepDive('claude-deep')">Deep Dive ↓</button>
+                
+                <div class="deep-dive" id="claude-deep">
+                    <h3>Enterprise Implementation Details</h3>
+                    <div class="detail-section">
+                        <h4>Specific Use Cases Enabled</h4>
+                        <ul>
+                            <li><strong>Autonomous Code Refactoring:</strong> <a href="https://www.anthropic.com/news/claude-4" target="_blank">Cursor reports it as "state-of-the-art for coding and a leap forward in complex codebase understanding"</a></li>
+                            <li><strong>Multi-File Development:</strong> <a href="https://www.anthropic.com/news/claude-4" target="_blank">Replit notes "improved precision and dramatic advancements for complex changes across multiple files"</a></li>
+                            <li><strong>Agent Workflows:</strong> <a href="https://www.anthropic.com/news/claude-4" target="_blank">GitHub will introduce it as the model powering the new coding agent in GitHub Copilot</a></li>
+                        </ul>
+                    </div>
+                    
+                    <button class="expand-button" onclick="toggleDeepDive('claude-deeper')">Technical Details ↓</button>
+                    
+                    <div class="deep-dive" id="claude-deeper">
+                        <h4>Safety Classification & Implications</h4>
+                        <p><a href="https://techcrunch.com/2025/05/22/anthropics-new-claude-4-ai-models-can-reason-over-many-steps/" target="_blank">Anthropic classified Opus 4 as "Level 3" on their safety scale</a>, meaning it poses "significantly higher risk" and may "substantially increase" dangerous capabilities. This represents the first commercial model to reach this classification level.</p>
+                        
+                        <h4>Cost-Benefit Analysis</h4>
+                        <p>At $200/month for unlimited usage, one Claude 4 subscription can handle the work output of 2-3 junior developers who would cost $200,000+ annually. For refactoring and maintenance tasks, the ROI is immediate and substantial.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Windows 11 Agentic OS Slide -->
+        <section class="slide" id="slide-4">
+            <div class="slide-content">
+                <h2>Windows 11: The Native Agentic Operating System</h2>
+                
+                <div class="intro-section">
+                    <p><a href="https://blogs.microsoft.com/blog/2025/05/19/microsoft-build-2025-the-age-of-ai-agents-and-building-the-open-agentic-web/" target="_blank">Microsoft positioned 2025 as "the age of AI agents" at Build 2025</a>, announcing that Windows 11 will embed the Model Context Protocol (MCP) deep within the OS.</p>
+                </div>
+
+                <div class="importance-section">
+                    <h3>Why This Matters</h3>
+                    <ul>
+                        <li><strong>Scale of Impact:</strong> <a href="https://blogs.microsoft.com/blog/2025/05/19/microsoft-build-2025-the-age-of-ai-agents-and-building-the-open-agentic-web/" target="_blank">More than 230,000 organizations — including 90% of the Fortune 500 — have already used Copilot Studio to build AI agents</a></li>
+                        <li><strong>Native Integration:</strong> <a href="https://windowsforum.com/threads/microsofts-build-2025-the-rise-of-the-agentic-windows-with-model-context-protocol-mcp.367037/" target="_blank">MCP allows AI agents to discover and invoke tools in a standardized way</a>, providing seamless orchestration between local and remote services</li>
+                        <li><strong>Practical Applications:</strong> <a href="https://developer.microsoft.com/en-us/windows/agentic/" target="_blank">Windows apps can expose specific functionality to augment the skills and capabilities of agents</a> installed locally on a Windows PC</li>
+                    </ul>
+                </div>
+
+                <div class="demo-summary">
+                    <h3>Demo: Multi-Agent Workflow</h3>
+                    <p>Demonstration of a single natural language command: "Prepare a performance summary from my team's tracked hours, chart the results in Excel, and email it to HR" - executed across multiple applications automatically.</p>
+                    <span class="demo-note">Full demo instructions in windows-mcp-demo.md</span>
+                </div>
+
+                <button class="expand-button" onclick="toggleDeepDive('windows-deep')">Deep Dive ↓</button>
+                
+                <div class="deep-dive" id="windows-deep">
+                    <h3>Technical Implementation</h3>
+                    <div class="detail-section">
+                        <h4>What MCP Enables</h4>
+                        <p><a href="https://blogs.windows.com/windowsexperience/2025/05/19/securing-the-model-context-protocol-building-a-safer-agentic-future-on-windows/" target="_blank">MCP is a lightweight, open protocol that allows AI agents to discover and invoke tools in a standardized way</a>. Under the hood, an AI agent leverages MCP to extract data, run calculations, trigger Excel to generate spreadsheets, and launch email—all stitched together by the protocol.</p>
+                        
+                        <h4>Security Architecture</h4>
+                        <p><a href="https://www.eweek.com/news/microsoft-windows-11-model-context-protocol/" target="_blank">Windows 11 will enforce proxy-mediated communication, tool-level authorization, runtime isolation, and a central MCP registry</a> to address security concerns around agent access.</p>
+                    </div>
+                    
+                    <button class="expand-button" onclick="toggleDeepDive('windows-deeper')">Partner Ecosystem ↓</button>
+                    
+                    <div class="deep-dive" id="windows-deeper">
+                        <h4>Early Partners & Timeline</h4>
+                        <p><a href="https://devclass.com/2025/05/19/mcp-will-be-built-into-windows-to-make-an-agentic-os-but-security-will-be-a-key-concern/" target="_blank">Microsoft is already working with developers from Figma, Anthropic, and Perplexity on MCP integrations</a>. Third-party developers including Zoom, Todoist, and Spark Mail are implementing App Actions.</p>
+                        
+                        <p><a href="https://www.neowin.net/news/microsoft-is-bringing-model-context-protocol-to-windows-11-to-make-it-an-agentic-os/" target="_blank">Private developer preview with select partners in the coming months</a>, requiring Windows developer mode initially. Public preview expected Q3 2025.</p>
+                        
+                        <h4>Key Releases from Build 2025</h4>
+                        <ul>
+                            <li><strong>GitHub Copilot Agent:</strong> <a href="https://www.directionsonmicrosoft.com/ten-takeaways-from-microsoft-build-2025/" target="_blank">Now generally available to all Copilot Enterprise and Pro+ customers</a> - moving from "pair programmer to peer programmer"</li>
+                            <li><strong>Multi-Agent Orchestration:</strong> <a href="https://www.directionsonmicrosoft.com/ten-takeaways-from-microsoft-build-2025/" target="_blank">Organizations can now build multi-agent systems in Copilot Studio</a> where agents delegate tasks to one another</li>
+                            <li><strong>NLWeb Protocol:</strong> <a href="https://mspoweruser.com/microsoft-build-2025-conference-highlights/" target="_blank">A new open standard that lets websites add natural-language interaction</a> - users can ask questions directly instead of navigating menus</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- OpenAI Hardware Slide -->
+        <section class="slide" id="slide-5">
+            <div class="slide-content">
+                <h2>OpenAI's $6.5B Hardware Play with Jony Ive</h2>
+                
+                <div class="intro-section">
+                    <p><a href="https://www.reuters.com/business/openai-acquire-jony-ives-hardware-startup-io-products-2025-05-21/" target="_blank">OpenAI acquired Jony Ive's hardware startup "io" for $6.5 billion on May 21, 2025</a> - their largest acquisition ever, signaling a major strategic shift toward hardware independence.</p>
+                </div>
+
+                <div class="importance-section">
+                    <h3>Strategic Significance</h3>
+                    <ul>
+                        <li><strong>Platform Independence:</strong> <a href="https://www.reuters.com/business/openai-acquire-jony-ives-hardware-startup-io-products-2025-05-21/" target="_blank">"OpenAI is interested in owning the next hardware platform so they don't have to sell their products through Apple iOS or Google's Android"</a></li>
+                        <li><strong>Design Leadership:</strong> <a href="https://www.cnbc.com/2025/05/21/openai-buys-iphone-designer-jony-ive-device-startup-for-6point4-billion.html" target="_blank">Ive takes on "deep creative and design responsibilities across OpenAI and io"</a> - bringing Apple's design DNA to AI hardware</li>
+                        <li><strong>Market Reaction:</strong> <a href="https://www.reuters.com/business/openai-acquire-jony-ives-hardware-startup-io-products-2025-05-21/" target="_blank">Apple shares fell more than 2% on the news</a>, indicating market perception of direct competition</li>
+                    </ul>
+                </div>
+
+                <div class="demo-summary">
+                    <h3>Timeline & Expectations</h3>
+                    <p><a href="https://www.axios.com/2025/05/21/jony-ive-openai-io-acquisition" target="_blank">First new products from the deal are set to be shown in 2026</a>. Industry speculation centers on AI-native devices that don't rely on smartphone ecosystems.</p>
+                </div>
+
+                <button class="expand-button" onclick="toggleDeepDive('openai-deep')">Analysis ↓</button>
+                
+                <div class="deep-dive" id="openai-deep">
+                    <h3>Strategic Implications</h3>
+                    <div class="detail-section">
+                        <p>This acquisition represents OpenAI's most aggressive move to control the full AI stack - from models to end-user devices. By hiring the designer who created the iPhone, OpenAI signals intent to create a new computing paradigm that bypasses traditional mobile platforms.</p>
+                        
+                        <h4>Potential Product Categories</h4>
+                        <ul>
+                            <li>AI-first wearables with direct model access</li>
+                            <li>Home devices that don't require smartphone pairing</li>
+                            <li>Enterprise hardware for on-premise AI deployment</li>
+                            <li>Novel form factors designed specifically for AI interaction</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Agents Maturity Slide -->
+        <section class="slide" id="slide-6">
+            <div class="slide-content">
+                <h2>AI Agents: From Experimentation to Production</h2>
+                
+                <div class="intro-section">
+                    <p>While AI agents aren't new - <a href="https://harvey.ai" target="_blank">Harvey AI launched in 2022</a> - what's changed in 2025 is capability and reliability reaching enterprise-grade thresholds. <a href="https://www.sequoiacap.com/article/ai-50-2025/" target="_blank">AI graduated from an answer engine to an action engine in the workplace</a>.</p>
+                </div>
+
+                <div class="importance-section">
+                    <h3>What Makes 2025 Different</h3>
+                    <ul>
+                        <li><strong>Reliability Threshold:</strong> Success rates for routine tasks moved from 60-70% to 95%+, making enterprise deployment viable</li>
+                        <li><strong>Complex Navigation:</strong> Modern agents handle authentication, multi-step workflows, and error recovery autonomously</li>
+                        <li><strong>Measurable ROI:</strong> <a href="https://sourceforge.net/software/ai-web-browsing-agents/" target="_blank">Deutsche Bahn reported over 90% efficiency improvement using AskUI's test automation</a></li>
+                    </ul>
+                </div>
+
+                <div class="demo-summary">
+                    <h3>Demo: Browser Agent Comparison</h3>
+                    <p>Live demonstration comparing <a href="https://venturebeat.com/ai/the-rise-of-browser-use-agents-why-convergences-proxy-is-beating-openais-operator/" target="_blank">Convergence.ai Proxy (UK startup beating OpenAI's Operator)</a> performing multi-site price comparisons and competitive intelligence gathering.</p>
+                    <span class="demo-note">Full demo instructions in browser-agents-demo.md</span>
+                </div>
+
+                <button class="expand-button" onclick="toggleDeepDive('agents-deep')">Implementation Examples ↓</button>
+                
+                <div class="deep-dive" id="agents-deep">
+                    <h3>Real-World Enterprise Deployments</h3>
+                    <div class="detail-section">
+                        <h4>Browser Control Leaders</h4>
+                        <ul>
+                            <li><strong>Convergence.ai Proxy:</strong> <a href="https://www.techradar.com/computing/artificial-intelligence/i-tried-this-new-online-ai-agent-and-i-cant-believe-how-good-convergence-ais-proxy-1-0-is-at-completing-multiple-online-tasks-simultaneously" target="_blank">Can navigate to Amazon, Best Buy, and Walmart simultaneously to compare prices</a> - $20/month unlimited vs OpenAI's premium tier</li>
+                            <li><strong>AskUI:</strong> <a href="https://sourceforge.net/software/ai-web-browsing-agents/" target="_blank">AI agents that visually perceive and interact with any computer interface across Windows, macOS, Linux</a></li>
+                            <li><strong>Skyvern:</strong> <a href="https://sourceforge.net/software/ai-web-browsing-agents/" target="_blank">Automates procurement pipelines, government forms, supports 2FA/TOTP authentication</a></li>
+                        </ul>
+                    </div>
+                    
+                    <button class="expand-button" onclick="toggleDeepDive('agents-deeper')">ROI Metrics ↓</button>
+                    
+                    <div class="deep-dive" id="agents-deeper">
+                        <h4>Measurable Business Impact</h4>
+                        <ul>
+                            <li><strong>Legal Automation:</strong> <a href="https://www.sequoiacap.com/article/ai-50-2025/" target="_blank">Harvey AI now handles entire legal workflows, from document review to predictive case analysis</a></li>
+                            <li><strong>Software Development:</strong> <a href="https://news.microsoft.com/build-2025-book-of-news/" target="_blank">GitHub Copilot agents handle bug fixes, feature additions, and documentation improvements autonomously</a></li>
+                            <li><strong>Customer Service:</strong> <a href="https://www.ycombinator.com/companies/industry/ai" target="_blank">Stack AI allows organizations to deploy custom AI agents for back-office operations through low-code interfaces</a></li>
+                        </ul>
+                        
+                        <p><strong>Key Insight:</strong> <a href="https://venturebeat.com/ai/the-rise-of-browser-use-agents-why-convergences-proxy-is-beating-openais-operator/" target="_blank">The race between established players and innovative startups should drive both technical advancement and competitive pricing, making 2025 a crucial year for enterprise browser-use agent adoption</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scientific Breakthroughs Slide -->
+        <section class="slide" id="slide-7">
+            <div class="slide-content">
+                <h2>AI Scientific Breakthroughs: Co-Discovery Era</h2>
+                
+                <div class="intro-section">
+                    <p><a href="https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/" target="_blank">Google Research introduced an AI co-scientist system built with Gemini 2.0</a> that acts as a virtual scientific collaborator, representing a fundamental shift from AI as a tool to AI as an active research partner.</p>
+                </div>
+
+                <div class="importance-section">
+                    <h3>Validated Breakthroughs</h3>
+                    <ul>
+                        <li><strong>Drug Repurposing:</strong> <a href="https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/" target="_blank">AI co-scientist proposed novel repurposing candidates for acute myeloid leukemia (AML) - subsequent experiments validated these proposals</a></li>
+                        <li><strong>Materials Discovery:</strong> <a href="https://news.microsoft.com/source/features/ai/2-ai-breakthroughs-unlock-new-potential-for-health-and-science/" target="_blank">Microsoft's MatterGen AI can create designs for new materials by analyzing diverse data modalities</a></li>
+                        <li><strong>Lab Automation:</strong> <a href="https://www.sciencedaily.com/releases/2024/10/241023141802.htm" target="_blank">Science laboratories are on the verge of transformation as robotic automation and AI lead to faster and more precise experiments</a></li>
+                    </ul>
+                </div>
+
+                <div class="demo-summary">
+                    <h3>Demo: AI Co-Scientist Workflow</h3>
+                    <p>Demonstration of AI co-scientist analyzing drug databases, research papers, and clinical data to propose novel therapeutic candidates for resistant bacterial infections.</p>
+                    <span class="demo-note">Full demo instructions in ai-scientist-demo.md</span>
+                </div>
+
+                <button class="expand-button" onclick="toggleDeepDive('science-deep')">Clinical Validation ↓</button>
+                
+                <div class="deep-dive" id="science-deep">
+                    <h3>AI Therapy: First Clinical Trial Success</h3>
+                    <div class="detail-section">
+                        <p><a href="https://home.dartmouth.edu/news/2025/03/first-therapy-chatbot-trial-yields-mental-health-benefits" target="_blank">Dartmouth's Therabot study - first-ever clinical trial of a generative AI-powered therapy chatbot</a> showed significant improvements in participants' symptoms.</p>
+                        
+                        <h4>Clinical Results (Published in NEJM AI, March 2025)</h4>
+                        <ul>
+                            <li><strong>Depression:</strong> <a href="https://ai.nejm.org/doi/full/10.1056/AIoa2400802" target="_blank">Mean symptom reduction of -7.93 vs -4.22 in control group at 8 weeks</a></li>
+                            <li><strong>Anxiety:</strong> <a href="https://ai.nejm.org/doi/full/10.1056/AIoa2400802" target="_blank">Mean reduction of -3.18 vs -1.11 in control group at 8 weeks</a></li>
+                            <li><strong>Usage Pattern:</strong> <a href="https://www.psychologytoday.com/us/blog/urban-survival/202504/ai-therapy-breakthrough-new-study-reveals-promising-results" target="_blank">Participants used Therabot for an average of six hours throughout the trial—equivalent to approximately eight therapy sessions</a></li>
+                        </ul>
+                    </div>
+                    
+                    <button class="expand-button" onclick="toggleDeepDive('science-deeper')">Market Context ↓</button>
+                    
+                    <div class="deep-dive" id="science-deeper">
+                        <h4>Mental Health AI Market</h4>
+                        <p><a href="https://www.foxnews.com/media/your-therapist-ai-chatgpt-goes-viral-social-media-role-gen-zs-new-therapist" target="_blank">1 in 4 Americans are more likely to talk to an AI chatbot instead of attending therapy</a>, driven by accessibility and cost factors.</p>
+                        
+                        <p><strong>Key Differentiator:</strong> <a href="https://www.psychologytoday.com/us/blog/urban-survival/202504/ai-therapy-breakthrough-new-study-reveals-promising-results" target="_blank">Unlike many AI chatbots that rely on generic data sets, Therabot was trained specifically on evidence-based CBT</a></p>
+                        
+                        <h4>Research Acceleration Impact</h4>
+                        <p><a href="https://www.sciencedaily.com/releases/2024/10/241023141802.htm" target="_blank">"By automating routine tasks and accelerating experimentation, there is great potential for creating an environment where breakthroughs occur faster, safer and more reliably than ever before"</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PE Strategy Slide -->
+        <section class="slide" id="slide-8">
+            <div class="slide-content">
+                <h2>PE Evolution: The AI Roll-Up Strategy</h2>
+                
+                <div class="intro-section">
+                    <p><a href="https://techcrunch.com/2025/05/23/khosla-ventures-among-vcs-experimenting-with-ai-infused-roll-ups-of-mature-companies/" target="_blank">VC firms are pioneering a new investment strategy: acquiring established businesses and optimizing them with AI to boost efficiency and customer reach</a>. This isn't about investing in AI startups - it's about using AI to transform traditional businesses.</p>
+                </div>
+
+                <div class="importance-section">
+                    <h3>Market Leaders & Activity</h3>
+                    <ul>
+                        <li><strong>General Catalyst:</strong> <a href="https://techcrunch.com/2025/05/23/khosla-ventures-among-vcs-experimenting-with-ai-infused-roll-ups-of-mature-companies/" target="_blank">Has already backed seven such companies, including Long Lake (homeowners association management) which secured $670 million in funding</a></li>
+                        <li><strong>Khosla Ventures:</strong> <a href="https://techcrunch.com/2025/05/23/khosla-ventures-among-vcs-experimenting-with-ai-infused-roll-ups-of-mature-companies/" target="_blank">"We'll look at a few of these types of opportunities"</a> - actively exploring AI-enhanced acquisitions</li>
+                        <li><strong>Target Profile:</strong> <a href="https://www.fticonsulting.com/insights/articles/ai-investment-landscape-2025-opportunities-volatile-market" target="_blank">Companies that either have proper enterprise and data infrastructure that allows for AI enablement or where PEs see a clear value thesis</a></li>
+                    </ul>
+                </div>
+
+                <div class="demo-summary">
+                    <h3>Case Study: Long Lake HOA Management</h3>
+                    <p>Traditional business (stable recurring revenue, minimal tech) transformed with AI for automated compliance monitoring, predictive maintenance, and AI-powered resident services - achieving 50% operating cost reduction.</p>
+                </div>
+
+                <button class="expand-button" onclick="toggleDeepDive('pe-deep')">Implementation Framework ↓</button>
+                
+                <div class="deep-dive" id="pe-deep">
+                    <h3>AI Roll-Up Playbook</h3>
+                    <div class="detail-section">
+                        <h4>Target Screening Criteria</h4>
+                        <p><a href="https://www.fticonsulting.com/insights/articles/ai-investment-landscape-2025-opportunities-volatile-market" target="_blank">Value creation often in data- or content-rich environments that enable AI use cases and can be further monetized through first-party customer data for AI-driven personalization</a></p>
+                        
+                        <h4>100-Day Transformation Timeline</h4>
+                        <ul>
+                            <li><strong>Days 1-30:</strong> AI readiness assessment and quick wins (chatbots, document processing)</li>
+                            <li><strong>Days 31-60:</strong> Deploy first AI agents for core business processes</li>
+                            <li><strong>Days 61-100:</strong> Scale successful pilots and measure ROI</li>
+                        </ul>
+                    </div>
+                    
+                    <button class="expand-button" onclick="toggleDeepDive('pe-deeper')">Financial Model ↓</button>
+                    
+                    <div class="deep-dive" id="pe-deeper">
+                        <h4>Value Creation Example: $50M Revenue Business</h4>
+                        <table style="width: 100%; margin: 1rem 0; border-collapse: collapse;">
+                            <tr style="border-bottom: 2px solid var(--border-color);">
+                                <th style="text-align: left; padding: 0.5rem;">Metric</th>
+                                <th style="text-align: left; padding: 0.5rem;">Pre-AI</th>
+                                <th style="text-align: left; padding: 0.5rem;">Post-AI (Year 2)</th>
+                                <th style="text-align: left; padding: 0.5rem;">Impact</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;">Revenue</td>
+                                <td>$50M</td>
+                                <td>$65M</td>
+                                <td style="color: #059669;">+30%</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;">EBITDA Margin</td>
+                                <td>15%</td>
+                                <td>28%</td>
+                                <td style="color: #059669;">+13pts</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;">Revenue/Employee</td>
+                                <td>$250K</td>
+                                <td>$433K</td>
+                                <td style="color: #059669;">+73%</td>
+                            </tr>
+                        </table>
+                        
+                        <p><strong>The Window is Now:</strong> "We're in a unique moment where AI capabilities have matured but most traditional businesses haven't adopted yet. The firms moving now will capture outsized returns."</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Takeaways Slide -->
+        <section class="slide" id="slide-9">
+            <div class="slide-content">
+                <h2>Strategic Takeaways & Action Items</h2>
+                
+                <div class="overview-grid">
+                    <div class="overview-item">
+                        <h3>1. AI Has Reached Inflection Point</h3>
+                        <p>Models like Claude 4 can now work autonomously for hours, Windows is becoming an agentic OS, and browser agents achieve 95%+ reliability. The tools are ready for enterprise deployment.</p>
+                    </div>
+                    <div class="overview-item">
+                        <h3>2. First-Mover Advantage is Real</h3>
+                        <p>Early adopters are seeing 10x ROI on AI investments. The arbitrage opportunity between AI-enabled and traditional businesses will close within 24 months.</p>
+                    </div>
+                    <div class="overview-item">
+                        <h3>3. Platform Wars Intensifying</h3>
+                        <p>OpenAI's hardware play, Microsoft's OS integration, and startup innovation create both opportunities and risks. Platform dependencies will determine winners.</p>
+                    </div>
+                    <div class="overview-item">
+                        <h3>4. Science & Healthcare Disruption</h3>
+                        <p>AI co-scientists accelerating discovery 10-100x and validated AI therapy results signal fundamental changes in R&D and healthcare delivery models.</p>
+                    </div>
+                </div>               
+            </div>
+        </section>
+
+        <!-- Final Slide -->
+        <section class="slide" id="slide-10">
+            <div class="slide-content">
+                <h1 class="main-title">Questions & Discussion</h1>
+                
+                <div class="key-theme" style="margin-top: 4rem;">
+                    <p class="theme-text">"2025 marks the transition from AI experimentation to AI implementation. The question is no longer whether AI will transform business, but how quickly you can capture the value."</p>
+                </div>
+                
+                <div class="contact-info">
+                    <p style="text-align: center; margin-top: 3rem; font-size: 1.2rem;">
+                        Demo files and detailed documentation available in:<br/>
+                        <code style="background: var(--bg-light); padding: 0.5rem 1rem; border-radius: 0.25rem;">arena_prep/demos/</code>
+                    </p>
+
+                <div class="generation-note" style="margin-top: 2rem; padding: 1rem; background: var(--bg-light); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+                    <p><strong>About This Presentation:</strong> This briefing was generated through an iterative AI collaboration process:</p>
+                    <ol style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                        <li>Initial research compilation and synthesis with Claude Sonnet 4 (extended thinking)</li>
+                        <li>Autonomous generation of the presentation website using Claude 4 Opus</li>
+                        <li>Multiple 5-minute execution cycles with Cursor AI (Claude 4 opus) for refinement</li>
+                    </ol>
+                    <p style="margin-top: 0.5rem; font-style: italic;">The process itself demonstrates the capabilities discussed in this briefing - AI agents working autonomously to create enterprise-ready deliverables.</p>
+                </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <button onclick="previousSlide()" class="nav-button" id="prev-button">← Previous</button>
+            <span class="slide-counter">1 / 10</span>
+            <button onclick="nextSlide()" class="nav-button" id="next-button">Next →</button>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html> 
