@@ -2,14 +2,16 @@
 
 [x] Fix linkedn mcp blocking call
 
-[ ] Align frontend with new conversational interruptions (wait for finishing backend refactor)
+[x] Align frontend with new conversational interruptions
 
 [ ] Implement proper output grading (wait for meeting / better clarification on it)
 
-[ ] (UX) Manage files loading state
+[x] (UX) Manage files loading state
 
-[ ] Fix github action for firebase deploy
+[x] Fix github action for firebase deploy
 
-[ ] Adjust tailoring process tracking (avoid buffering, maybe using "empty interrupts")
+[x] Adjust tailoring process tracking (avoid buffering)
 
-[ ] Enhance UI - navigation, jobs list
+[ ] Update frontend "missing info" to use chat instead of interruption dialogs
+
+[ ] Enhance UI - navigation, jobs list, etc
