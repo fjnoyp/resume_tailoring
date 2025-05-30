@@ -6,7 +6,7 @@ load_dotenv()
 from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 
-isTest = True
+isTest = False
 
 if isTest:
     # Using Groq for free, fast cloud inference (no local installation needed)
