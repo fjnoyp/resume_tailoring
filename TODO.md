@@ -12,6 +12,6 @@
 
 [x] Adjust tailoring process tracking (avoid buffering)
 
-[ ] Update frontend "missing info" to use chat instead of interruption dialogs
+[x] Update frontend "missing info" to use chat instead of interruption dialogs
 
 [ ] Enhance UI - navigation, jobs list, etc
