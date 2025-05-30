@@ -15,6 +15,7 @@ from src.graphs.resume_rewrite.state import GraphState, set_error
 from src.tools.state_storage_manager import save_processing_result
 from src.utils.node_utils import validate_fields, setup_metadata, handle_error
 from langgraph.types import interrupt
+from langgraph.errors import GraphInterrupt
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -220,6 +221,7 @@ Return both the missing info analysis and the tailored resume.
                 "\n".join(result.missing_info) if result.missing_info else ""
             ),
         }
-
+    except GraphInterrupt:
+        raise
     except Exception as e:
         return handle_error(e, "resume_tailorer")
