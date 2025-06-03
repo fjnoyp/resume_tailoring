@@ -262,10 +262,20 @@ class StateStorageManager:
         """
         try:
             file_path = f"{user_id}/temp/{filename}"
-            return await _read_file_from_bucket(file_path)
+            logging.debug(f"[StateStorage] Attempting to read file: {file_path}")
+            
+            file_bytes = await _read_file_from_bucket(file_path)
+            
+            if file_bytes:
+                logging.debug(f"[StateStorage] Successfully read file: {file_path}, size: {len(file_bytes)} bytes")
+                return file_bytes
+            else:
+                logging.error(f"[StateStorage] File read returned None/empty: {file_path}")
+                return None
 
         except Exception as e:
             logging.error(f"[StateStorage] Error reading file bytes {filename}: {e}")
+            logging.error(f"[StateStorage] Full path attempted: {user_id}/temp/{filename}")
             return None
 
     @staticmethod

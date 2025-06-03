@@ -50,6 +50,9 @@ async def file_parser(
 
         # Read all files content using StateStorageManager
         all_content = []
+        missing_files = []
+        original_resume_content = None  # Track if we find an ORIGINAL_RESUME file
+        
         for file_name in file_names:
             # Read file bytes for potential PDF processing
             file_content_bytes = await StateStorageManager.read_temp_file_bytes(
@@ -57,7 +60,9 @@ async def file_parser(
             )
 
             if not file_content_bytes:
-                logging.warning(f"File not found: {file_name}")
+                logging.error(f"[DEBUG] File not found in temp storage: {file_name} for user {user_id}")
+                logging.error(f"[DEBUG] Expected path: {user_id}/temp/{file_name}")
+                missing_files.append(file_name)
                 continue
 
             # Handle PDF files differently
@@ -66,10 +71,27 @@ async def file_parser(
             else:
                 file_content = file_content_bytes.decode("utf-8")
 
+            # Check if this is an ORIGINAL_RESUME file (any extension)
+            file_name_without_ext = file_name.rsplit('.', 1)[0].upper()
+            if file_name_without_ext == "ORIGINAL_RESUME":
+                original_resume_content = file_content
+                logging.debug(f"[DEBUG] Detected ORIGINAL_RESUME file: {file_name}, will update original_resume field")
+
             all_content.append(f"Content from {file_name}:\n{file_content}")
+            logging.debug(f"[DEBUG] Successfully read file: {file_name}, content length: {len(file_content)}")
 
         if not all_content:
-            return {"error": "No valid file content found to parse"}
+            error_msg = f"No valid file content found to parse. Missing files: {missing_files}. " \
+                       f"Files should be uploaded to temp storage at paths: " \
+                       f"{[f'{user_id}/temp/{f}' for f in missing_files]}"
+            logging.error(f"[DEBUG] {error_msg}")
+            return {"error": error_msg}
+
+        # Save original resume if we found one
+        if original_resume_content:
+            from src.tools.state_storage_manager import save_processing_result
+            await save_processing_result(user_id, None, "original_resume", original_resume_content)
+            logging.debug(f"[DEBUG] Updated original_resume field with content from ORIGINAL_RESUME file")
 
         combined_content = "\n\n---\n\n".join(all_content)
 

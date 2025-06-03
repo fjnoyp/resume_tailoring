@@ -33,13 +33,21 @@ async def _read_file_from_bucket(file_path: str) -> Optional[bytes]:
         The file content as bytes if found, None otherwise
     """
     try:
+        logging.debug(f"[Storage] Attempting to download from bucket '{bucket_name}' path: {file_path}")
+        
         response = await asyncio.to_thread(
             lambda: supabase_client.storage.from_(bucket_name).download(file_path)
         )
-        logging.debug(f"[Storage] Downloaded file: {file_path}")
+        
+        if response:
+            logging.debug(f"[Storage] Successfully downloaded file: {file_path}, size: {len(response)} bytes")
+        else:
+            logging.error(f"[Storage] Download returned empty/None for: {file_path}")
+            
         return response
     except Exception as e:
-        logging.debug(f"[Storage] Error retrieving file {file_path}: {e}")
+        logging.error(f"[Storage] Error retrieving file {file_path} from bucket '{bucket_name}': {e}")
+        logging.error(f"[Storage] Exception type: {type(e).__name__}")
         return None
 
 
