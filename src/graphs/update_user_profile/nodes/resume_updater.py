@@ -95,7 +95,7 @@ IMPORTANT: Return ONLY the markdown content. Do not include any explanations, co
 
         # Save to storage using StateStorageManager
         await save_processing_result(
-            user_id, None, "updated_full_resume", updated_full_resume
+            user_id, None, "full_resume", updated_full_resume
         )
 
         logging.debug(f"[DEBUG] Resume updated: {len(updated_full_resume)} chars")
