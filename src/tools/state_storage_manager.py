@@ -7,26 +7,35 @@ for storage operations - nodes should not access storage directly.
 """
 
 import logging
-from typing import Dict, Any, Optional, TypeVar, Union, List
+import asyncio
+from typing import Dict, Any, Optional, TypeVar
 from dataclasses import dataclass
 from enum import Enum
+from datetime import datetime, timezone
 
 from src.tools._supabase_storage_tools import (
     _read_file_from_bucket,
-    _upload_file_to_bucket,
-    _list_files_in_bucket,
     _delete_file_from_bucket,
 )
-from src.tools.file_path_manager import (
-    get_file_paths,
-    get_field_to_path_mapping,
-    UserFilePaths,
-)
+
+# Import Supabase client for database operations
+from supabase import create_client, Client
+import os
 
 logging.basicConfig(level=logging.DEBUG)
 
 # Type variables for state types
 StateType = TypeVar("StateType", bound=Dict[str, Any])
+
+# Initialize Supabase client
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # This bypasses RLS
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables")
+
+# Use service role for AI operations - bypasses RLS policies  
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
 class StateLoadMode(Enum):
@@ -43,7 +52,7 @@ class StateLoadResult:
 
     success: bool
     loaded_fields: Dict[str, Any]
-    missing_files: list[str]
+    missing_fields: list[str]
     error: Optional[str] = None
 
 
@@ -83,47 +92,66 @@ class StateStorageManager:
             StateLoadResult with loaded data and status
         """
         try:
-            file_paths = get_file_paths(user_id, job_id)
             loaded_fields = {}
-            missing_files = []
+            missing_fields = []
 
-            # Define what files to load for each mode
-            file_specs = StateStorageManager._get_file_specs_for_mode(mode, file_paths)
-
-            # Load each required file
-            for field_name, file_path, required in file_specs:
-                content = await StateStorageManager._load_file_content(file_path)
-
-                if content is not None:
-                    loaded_fields[field_name] = content
-                    logging.debug(
-                        f"[StateStorage] Loaded {field_name}: {len(content)} chars"
-                    )
-                else:
-                    if required:
-                        missing_files.append(f"{field_name} ({file_path})")
+            # Load user data if needed
+            if mode in [StateLoadMode.RESUME_TAILORING, StateLoadMode.USER_PROFILE_UPDATE, StateLoadMode.COVER_LETTER]:
+                user_data = await StateStorageManager._load_user_data(user_id)
+                if user_data:
+                    if mode == StateLoadMode.USER_PROFILE_UPDATE:
+                        loaded_fields["current_full_resume"] = user_data.get("full_resume", "")
                     else:
-                        loaded_fields[field_name] = (
-                            ""  # Optional files default to empty
-                        )
-                        logging.debug(
-                            f"[StateStorage] Optional file not found: {field_name}"
-                        )
+                        loaded_fields["original_resume"] = user_data.get("original_resume", "")
+                        loaded_fields["full_resume"] = user_data.get("full_resume", "")
+                else:
+                    if mode == StateLoadMode.USER_PROFILE_UPDATE:
+                        loaded_fields["current_full_resume"] = ""
+                    else:
+                        missing_fields.append("user data")
 
-            # Check if we have all required files
-            if missing_files:
+            # Load job data if needed
+            if job_id and mode in [StateLoadMode.RESUME_TAILORING, StateLoadMode.COVER_LETTER]:
+                job_data = await StateStorageManager._load_job_data(job_id)
+                if job_data:
+                    loaded_fields["job_description"] = job_data.get("job_description", "")
+                    
+                    if mode == StateLoadMode.RESUME_TAILORING:
+                        # Optional fields for resume tailoring
+                        loaded_fields["company_strategy"] = job_data.get("company_strategy", "")
+                        loaded_fields["tailored_resume"] = job_data.get("tailored_resume", "")
+                        loaded_fields["tailored_cv"] = job_data.get("tailored_cv", "")
+                        
+                    elif mode == StateLoadMode.COVER_LETTER:
+                        # Required fields for cover letter
+                        tailored_resume = job_data.get("tailored_resume", "")
+                        recruiter_feedback = job_data.get("recruiter_feedback", "")
+                        
+                        if not tailored_resume:
+                            missing_fields.append("tailored_resume")
+                        if not recruiter_feedback:
+                            missing_fields.append("recruiter_feedback")
+                            
+                        loaded_fields["tailored_resume"] = tailored_resume
+                        loaded_fields["recruiter_feedback"] = recruiter_feedback
+                        loaded_fields["company_strategy"] = job_data.get("company_strategy", "")
+                else:
+                    missing_fields.append("job data")
+
+            # Check if we have all required data
+            if missing_fields:
                 return StateLoadResult(
                     success=False,
                     loaded_fields=loaded_fields,
-                    missing_files=missing_files,
-                    error=f"Missing required files: {', '.join(missing_files)}",
+                    missing_fields=missing_fields,
+                    error=f"Missing required data: {', '.join(missing_fields)}",
                 )
 
             logging.debug(
                 f"[StateStorage] Successfully loaded {len(loaded_fields)} fields for {mode.value}"
             )
             return StateLoadResult(
-                success=True, loaded_fields=loaded_fields, missing_files=[]
+                success=True, loaded_fields=loaded_fields, missing_fields=[]
             )
 
         except Exception as e:
@@ -131,7 +159,7 @@ class StateStorageManager:
             return StateLoadResult(
                 success=False,
                 loaded_fields={},
-                missing_files=[],
+                missing_fields=[],
                 error=f"State loading failed: {str(e)}",
             )
 
@@ -140,7 +168,7 @@ class StateStorageManager:
         user_id: str, job_id: Optional[str], field_name: str, content: str
     ) -> bool:
         """
-        Save a single state field to storage.
+        Save a single state field to the database.
 
         Args:
             user_id: User identifier
@@ -152,22 +180,18 @@ class StateStorageManager:
             True if successful, False otherwise
         """
         try:
-            file_paths = get_file_paths(user_id, job_id)
-            field_to_path = get_field_to_path_mapping(file_paths)
-            file_path = field_to_path.get(field_name)
+            # Map field names to table operations
+            user_fields = ["full_resume", "original_resume"]
+            job_fields = ["job_description", "company_strategy", "recruiter_feedback", 
+                         "tailored_resume", "tailored_cv", "confidence_score", "status", 
+                         "job_title", "company_name"]
 
-            if not file_path:
-                logging.error(f"[StateStorage] Unknown field name: {field_name}")
-                return False
-
-            result = await _upload_file_to_bucket(file_path, content)
-            if result:
-                logging.debug(
-                    f"[StateStorage] Saved {field_name}: {len(content)} chars to {file_path}"
-                )
-                return True
+            if field_name in user_fields:
+                return await StateStorageManager._save_user_field(user_id, field_name, content)
+            elif field_name in job_fields and job_id:
+                return await StateStorageManager._save_job_field(job_id, field_name, content)
             else:
-                logging.error(f"[StateStorage] Failed to save {field_name}")
+                logging.error(f"[StateStorage] Unknown field name or missing job_id: {field_name}")
                 return False
 
         except Exception as e:
@@ -179,7 +203,7 @@ class StateStorageManager:
         user_id: str, job_id: Optional[str], fields: Dict[str, str]
     ) -> Dict[str, bool]:
         """
-        Save multiple state fields to storage.
+        Save multiple state fields to the database.
 
         Args:
             user_id: User identifier
@@ -197,57 +221,47 @@ class StateStorageManager:
         return results
 
     @staticmethod
-    async def read_file(
-        user_id: str, filename: str, job_id: Optional[str] = None
+    async def read_temp_file(
+        user_id: str, filename: str
     ) -> Optional[str]:
         """
-        Read a custom file from user or job directory.
+        Read a temp file from the user-files storage bucket.
 
         Args:
             user_id: User identifier
             filename: Name of the file to read
-            job_id: Job identifier (if file is in job directory)
 
         Returns:
             File content as string, or None if not found
         """
         try:
-            file_paths = get_file_paths(user_id, job_id)
-
-            if job_id:
-                file_path = file_paths.custom_file_path(filename)
-            else:
-                file_path = file_paths.user_file_path(filename)
-
-            return await StateStorageManager._load_file_content(file_path)
+            file_path = f"{user_id}/temp/{filename}"
+            file_bytes = await _read_file_from_bucket(file_path)
+            
+            if file_bytes:
+                return file_bytes.decode("utf-8")
+            return None
 
         except Exception as e:
             logging.error(f"[StateStorage] Error reading file {filename}: {e}")
             return None
 
     @staticmethod
-    async def read_file_bytes(
-        user_id: str, filename: str, job_id: Optional[str] = None
+    async def read_temp_file_bytes(
+        user_id: str, filename: str
     ) -> Optional[bytes]:
         """
-        Read a custom file as bytes from user or job directory.
+        Read a temp file as bytes from the user-files storage bucket.
 
         Args:
             user_id: User identifier
             filename: Name of the file to read
-            job_id: Job identifier (if file is in job directory)
 
         Returns:
             File content as bytes, or None if not found
         """
         try:
-            file_paths = get_file_paths(user_id, job_id)
-
-            if job_id:
-                file_path = file_paths.custom_file_path(filename)
-            else:
-                file_path = file_paths.user_file_path(filename)
-
+            file_path = f"{user_id}/temp/{filename}"
             return await _read_file_from_bucket(file_path)
 
         except Exception as e:
@@ -255,107 +269,23 @@ class StateStorageManager:
             return None
 
     @staticmethod
-    async def save_file(
-        user_id: str, filename: str, content: str, job_id: Optional[str] = None
+    async def delete_temp_file(
+        user_id: str, filename: str
     ) -> bool:
         """
-        Save a custom file to user or job directory.
-
-        Args:
-            user_id: User identifier
-            filename: Name of the file to save
-            content: File content
-            job_id: Job identifier (if file should be in job directory)
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            file_paths = get_file_paths(user_id, job_id)
-
-            if job_id:
-                file_path = file_paths.custom_file_path(filename)
-            else:
-                file_path = file_paths.user_file_path(filename)
-
-            result = await _upload_file_to_bucket(file_path, content)
-            if result:
-                logging.debug(f"[StateStorage] Saved custom file: {file_path}")
-                return True
-            else:
-                logging.error(f"[StateStorage] Failed to save custom file: {filename}")
-                return False
-
-        except Exception as e:
-            logging.error(f"[StateStorage] Error saving file {filename}: {e}")
-            return False
-
-    @staticmethod
-    async def list_files(user_id: str, job_id: Optional[str] = None) -> List[FileInfo]:
-        """
-        List files in user or job directory.
-
-        Args:
-            user_id: User identifier
-            job_id: Job identifier (optional, lists job directory if provided)
-
-        Returns:
-            List of FileInfo objects
-        """
-        try:
-            file_paths = get_file_paths(user_id, job_id)
-
-            if job_id:
-                directory_path = file_paths.job_directory_path
-            else:
-                directory_path = file_paths.user_directory_path
-
-            files_data = await _list_files_in_bucket(directory_path)
-
-            if not files_data:
-                return []
-
-            file_infos = []
-            for file_data in files_data:
-                if isinstance(file_data, dict) and file_data.get("name"):
-                    file_info = FileInfo(
-                        name=file_data["name"],
-                        path=f"{directory_path}{file_data['name']}",
-                        size=file_data.get("metadata", {}).get("size"),
-                        last_modified=file_data.get("updated_at"),
-                    )
-                    file_infos.append(file_info)
-
-            return file_infos
-
-        except Exception as e:
-            logging.error(f"[StateStorage] Error listing files: {e}")
-            return []
-
-    @staticmethod
-    async def delete_file(
-        user_id: str, filename: str, job_id: Optional[str] = None
-    ) -> bool:
-        """
-        Delete a file from user or job directory.
+        Delete a temp file from user directory.
 
         Args:
             user_id: User identifier
             filename: Name of the file to delete
-            job_id: Job identifier (if file is in job directory)
 
         Returns:
             True if successful, False otherwise
         """
         try:
-            file_paths = get_file_paths(user_id, job_id)
-
-            if job_id:
-                file_path = file_paths.custom_file_path(filename)
-            else:
-                file_path = file_paths.user_file_path(filename)
-
+            file_path = f"{user_id}/temp/{filename}"
             result = await _delete_file_from_bucket(file_path)
+            
             if result:
                 logging.debug(f"[StateStorage] Deleted file: {file_path}")
                 return True
@@ -367,47 +297,89 @@ class StateStorageManager:
             logging.error(f"[StateStorage] Error deleting file {filename}: {e}")
             return False
 
-    @staticmethod
-    def _get_file_specs_for_mode(
-        mode: StateLoadMode, file_paths: UserFilePaths
-    ) -> list[tuple[str, str, bool]]:
-        """
-        Get file specifications (field_name, file_path, required) for a given mode.
-
-        Returns:
-            List of (field_name, file_path, is_required) tuples
-        """
-        if mode == StateLoadMode.RESUME_TAILORING:
-            return [
-                ("job_description", file_paths.job_description_path, True),
-                ("original_resume", file_paths.original_resume_path, True),
-                ("full_resume", file_paths.user_full_resume_path, False),
-            ]
-        elif mode == StateLoadMode.USER_PROFILE_UPDATE:
-            return [
-                ("current_full_resume", file_paths.user_full_resume_path, False),
-            ]
-        elif mode == StateLoadMode.COVER_LETTER:
-            return [
-                ("job_description", file_paths.job_description_path, True),
-                ("tailored_resume", file_paths.tailored_resume_path, True),
-                ("recruiter_feedback", file_paths.recruiter_feedback_path, True),
-                ("full_resume", file_paths.user_full_resume_path, False),
-            ]
-        else:
-            return []
+    # Private helper methods for database operations
 
     @staticmethod
-    async def _load_file_content(file_path: str) -> Optional[str]:
-        """Load and decode file content from storage."""
+    async def _load_user_data(user_id: str) -> Optional[Dict[str, Any]]:
+        """Load user data from the database."""
         try:
-            file_bytes = await _read_file_from_bucket(file_path)
-            if file_bytes:
-                return file_bytes.decode("utf-8")
-            return None
+            # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
+            def _sync_load_user():
+                result = supabase.table("users").select("*").eq("id", user_id).execute()
+                return result.data[0] if result.data else None
+            
+            return await asyncio.to_thread(_sync_load_user)
         except Exception as e:
-            logging.error(f"[StateStorage] Error loading file {file_path}: {e}")
+            logging.error(f"[StateStorage] Error loading user data: {e}")
             return None
+
+    @staticmethod
+    async def _load_job_data(job_id: str) -> Optional[Dict[str, Any]]:
+        """Load job data from the database."""
+        try:
+            # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
+            def _sync_load_job():
+                result = supabase.table("jobs").select("*").eq("id", job_id).execute()
+                return result.data[0] if result.data else None
+            
+            return await asyncio.to_thread(_sync_load_job)
+        except Exception as e:
+            logging.error(f"[StateStorage] Error loading job data: {e}")
+            return None
+
+    @staticmethod
+    async def _save_user_field(user_id: str, field_name: str, content: str) -> bool:
+        """Save a field to the users table."""
+        try:
+            def _sync_save_user():
+                update_data = {
+                    field_name: content,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                result = supabase.table("users").update(update_data).eq("id", user_id).execute()
+                return result.data is not None
+            
+            # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
+            success = await asyncio.to_thread(_sync_save_user)
+            
+            if success:
+                logging.debug(f"[StateStorage] Updated user {field_name}: {len(content)} chars")
+                return True
+            else:
+                logging.error(f"[StateStorage] Failed to update user {field_name}")
+                return False
+
+        except Exception as e:
+            logging.error(f"[StateStorage] Error saving user field {field_name}: {e}")
+            return False
+
+    @staticmethod
+    async def _save_job_field(job_id: str, field_name: str, content: str) -> bool:
+        """Save a field to the jobs table."""
+        try:
+            def _sync_save_job():
+                update_data = {
+                    field_name: content,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                result = supabase.table("jobs").update(update_data).eq("id", job_id).execute()
+                return result.data is not None
+            
+            # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
+            success = await asyncio.to_thread(_sync_save_job)
+            
+            if success:
+                logging.debug(f"[StateStorage] Updated job {field_name}: {len(content)} chars")
+                return True
+            else:
+                logging.error(f"[StateStorage] Failed to update job {field_name}")
+                return False
+
+        except Exception as e:
+            logging.error(f"[StateStorage] Error saving job field {field_name}: {e}")
+            return False
 
 
 # Convenience functions for common operations
@@ -428,7 +400,7 @@ async def load_user_profile_data(user_id: str) -> StateLoadResult:
 async def save_processing_result(
     user_id: str, job_id: Optional[str], field_name: str, content: str
 ) -> bool:
-    """Save a processing result to storage."""
+    """Save a processing result to the database."""
     return await StateStorageManager.save_state_field(
         user_id, job_id, field_name, content
     )

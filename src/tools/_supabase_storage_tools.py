@@ -13,10 +13,11 @@ import asyncio
 
 # Private module - should only be used by StateStorageManager
 supabase_client: Client = create_client(
-    os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY")
+    os.environ.get("SUPABASE_URL"), 
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # This bypasses RLS
 )
 
-bucket_name = "temp"
+bucket_name = "user-files"
 
 
 async def _read_file_from_bucket(file_path: str) -> Optional[bytes]:

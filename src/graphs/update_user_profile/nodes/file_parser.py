@@ -52,7 +52,7 @@ async def file_parser(
         all_content = []
         for file_name in file_names:
             # Read file bytes for potential PDF processing
-            file_content_bytes = await StateStorageManager.read_file_bytes(
+            file_content_bytes = await StateStorageManager.read_temp_file_bytes(
                 user_id, file_name
             )
 
