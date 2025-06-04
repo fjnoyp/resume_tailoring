@@ -22,14 +22,14 @@ async def job_analyzer(state: GraphState, config: RunnableConfig) -> Dict[str, A
     Analyzes job posting to understand company hiring strategy and requirements.
 
     Input: job_description (loaded by data_loader)
-    Output: job_strategy (strategic analysis and company insights)
+    Output: company_strategy (strategic analysis and company insights)
 
     Args:
         state: Graph state containing job description
         config: LangChain runnable config
 
     Returns:
-        Dictionary with job_strategy or error state
+        Dictionary with company_strategy or error state
     """
     try:
         # Validate required fields using dot notation
@@ -68,16 +68,16 @@ JOB_DESCRIPTION:
 {job_description}
 """
 
-        # Generate job strategy using simple model call
+        # Generate company strategy using simple model call
         response = await model.ainvoke(prompt, config=config)
-        job_strategy = response.content
+        company_strategy = response.content
 
         # Save to storage using StateStorageManager
-        await save_processing_result(user_id, job_id, "job_strategy", job_strategy)
+        await save_processing_result(user_id, job_id, "company_strategy", company_strategy)
 
-        logging.debug(f"[DEBUG] Job strategy generated: {len(job_strategy)} chars")
+        logging.debug(f"[DEBUG] Company strategy generated: {len(company_strategy)} chars")
 
-        return {"job_strategy": job_strategy}
+        return {"company_strategy": company_strategy}
 
     except Exception as e:
         return handle_error(e, "job_analyzer")

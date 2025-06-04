@@ -54,7 +54,7 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
     """
     Tailors resume for specific job using analysis results with persistent missing info tracking.
 
-    Input: original_resume, full_resume, job_description, job_strategy, recruiter_feedback
+    Input: original_resume, full_resume, job_description, company_strategy, recruiter_feedback
     Output: tailored_resume, missing_info (persistent context)
 
     Approach:
@@ -76,7 +76,7 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
             "original_resume",
             "full_resume",
             "job_description",
-            "job_strategy",
+            "company_strategy",
             "recruiter_feedback",
         ]
         error_msg = validate_fields(state, required, "tailoring")
@@ -89,7 +89,7 @@ async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str
         original_resume = state.original_resume
         full_resume = state.full_resume
         job_description = state.job_description
-        job_strategy = state.job_strategy
+        company_strategy = state.company_strategy
         recruiter_feedback = state.recruiter_feedback
 
         # Setup metadata
@@ -136,8 +136,8 @@ ADDITIONAL_COLLECTED_INFO:
 JOB_DESCRIPTION:
 {job_description}
 
-JOB_STRATEGY:
-{job_strategy}
+COMPANY_STRATEGY:
+{company_strategy}
 
 Return both the missing info analysis and the tailored resume.
 """
@@ -221,7 +221,9 @@ Return both the missing info analysis and the tailored resume.
                 "\n".join(result.missing_info) if result.missing_info else ""
             ),
         }
+
     except GraphInterrupt:
+        # Re-raise GraphInterrupt to allow proper interrupt handling
         raise
     except Exception as e:
         return handle_error(e, "resume_tailorer")

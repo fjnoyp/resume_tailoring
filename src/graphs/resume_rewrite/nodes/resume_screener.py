@@ -21,7 +21,7 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> Dict[str
     """
     Screens resume from recruiter perspective against job requirements.
 
-    Input: original_resume, job_description, job_strategy (all loaded by data_loader)
+    Input: original_resume, job_description, company_strategy (all loaded by data_loader)
     Output: recruiter_feedback (analysis and recommendations)
 
     Args:
@@ -34,7 +34,7 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> Dict[str
     try:
         # Validate required fields using dot notation
         error_msg = validate_fields(
-            state, ["original_resume", "job_description", "job_strategy"], "screening"
+            state, ["original_resume", "job_description", "company_strategy"], "screening"
         )
         if error_msg:
             return {"error": error_msg}
@@ -44,7 +44,7 @@ async def resume_screener(state: GraphState, config: RunnableConfig) -> Dict[str
         job_id = state.job_id
         original_resume = state.original_resume
         job_description = state.job_description
-        job_strategy = state.job_strategy
+        company_strategy = state.company_strategy
 
         # Setup metadata
         setup_metadata(config, "resume_screener", user_id, job_id)
@@ -69,7 +69,7 @@ JOB_DESCRIPTION:
 {job_description}
 
 STRATEGIC_ANALYSIS:
-{job_strategy}
+{company_strategy}
 """
 
         # Generate recruiter feedback using simple model call
