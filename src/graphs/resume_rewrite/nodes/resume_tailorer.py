@@ -6,6 +6,7 @@ Tracks missing information persistently to reduce hallucinations and support ite
 """
 
 import logging
+import json
 from typing import Dict, Any, List
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
@@ -172,6 +173,10 @@ Return both the missing info analysis and the tailored resume.
             if collection_result:
                 logging.info("[DEBUG] Resuming with collection result")
                 try:
+                    # Parse JSON string if needed
+                    if isinstance(collection_result, str):
+                        collection_result = json.loads(collection_result)
+                    
                     validated_result = InfoCollectionResult.model_validate(
                         collection_result
                     )
