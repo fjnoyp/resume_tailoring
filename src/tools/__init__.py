@@ -6,8 +6,8 @@ you're using the correct abstraction level.
 """
 
 # Primary storage interface - use this for all storage operations
-from .state_storage_manager import (
-    StateStorageManager,
+from .state_data_manager import (
+    StateDataManager,
     StateLoadMode,
     StateLoadResult,
     load_resume_tailoring_data,
@@ -29,11 +29,11 @@ from .storage_tools import storage_tools
 from .parse_pdf_tool import parse_pdf
 
 # Note: _supabase_storage_tools is private and should not be imported directly
-# Use StateStorageManager instead for all storage operations
+# Use StateDataManager instead for all storage operations
 
 __all__ = [
     # Storage Manager (primary interface)
-    "StateStorageManager",
+    "StateDataManager",
     "StateLoadMode",
     "StateLoadResult",
     "load_resume_tailoring_data",

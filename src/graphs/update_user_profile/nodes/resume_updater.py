@@ -11,7 +11,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.llm_config import model
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
-from src.tools.state_storage_manager import save_processing_result
+from src.tools.state_data_manager import save_processing_result
 from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
 
 logging.basicConfig(level=logging.DEBUG)
@@ -93,7 +93,7 @@ IMPORTANT: Return ONLY the markdown content. Do not include any explanations, co
         response = await model.ainvoke(prompt, config=config)
         updated_full_resume = response.content
 
-        # Save to storage using StateStorageManager
+        # Save to storage using StateDataManager
         await save_processing_result(
             user_id, None, "full_resume", updated_full_resume
         )

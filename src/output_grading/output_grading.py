@@ -7,7 +7,7 @@ import asyncio
 from langsmith import Client
 from src.output_grading.cover_letter_evaluator import cover_letter_evaluator
 from src.output_grading.resume_tailoring_evaluator import resume_tailoring_evaluator
-from src.tools.state_storage_manager import StateStorageManager
+from src.tools.state_data_manager import StateDataManager
 from src.tools.file_path_manager import get_file_paths
 import argparse
 
@@ -22,13 +22,13 @@ async def target(inputs: dict) -> dict:
     # Get canonical file paths for this user/job
     file_paths = get_file_paths(user_id, job_id)
 
-    # Read files using StateStorageManager
+    # Read files using StateDataManager
     tailored_resume = (
-        await StateStorageManager._load_file_content(file_paths.tailored_resume_path)
+        await StateDataManager._load_file_content(file_paths.tailored_resume_path)
         or ""
     )
     cover_letter = (
-        await StateStorageManager._load_file_content(file_paths.cover_letter_path) or ""
+        await StateDataManager._load_file_content(file_paths.cover_letter_path) or ""
     )
 
     return {"tailored_resume": tailored_resume, "cover_letter": cover_letter}

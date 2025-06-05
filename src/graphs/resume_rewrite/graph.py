@@ -4,7 +4,7 @@ Main Resume Tailoring Graph
 Clean, linear pipeline for resume tailoring with unified state management:
 START → initialize_state → job_analyzer → resume_screener → resume_tailorer → END
 
-Uses StateStorageManager for cohesive state loading/saving operations.
+Uses StateDataManager for cohesive state loading/saving operations.
 """
 
 import os
@@ -16,12 +16,12 @@ from src.graphs.resume_rewrite.nodes import (
     resume_screener,
     resume_tailorer,
 )
-from src.tools.state_storage_manager import load_resume_tailoring_data
+from src.tools.state_data_manager import load_resume_tailoring_data
 
 
 async def initialize_state(state: GraphState, config) -> dict:
     """
-    Initialize state by loading all required data using StateStorageManager.
+    Initialize state by loading all required data using StateDataManager.
 
     Replaces the old data_loader node with unified state management.
     """
@@ -38,7 +38,7 @@ async def initialize_state(state: GraphState, config) -> dict:
             "node": "initialize_state",
         }
 
-        # Load all required data using StateStorageManager
+        # Load all required data using StateDataManager
         load_result = await load_resume_tailoring_data(user_id, job_id)
 
         if not load_result.success:
@@ -55,7 +55,7 @@ def create_graph() -> StateGraph:
     Creates the main resume tailoring graph with unified state management.
 
     Pipeline:
-    1. initialize_state: Load ALL files using StateStorageManager
+    1. initialize_state: Load ALL files using StateDataManager
     2. job_analyzer: Analyzes job to extract company strategy and requirements
     3. resume_screener: Evaluates resume from recruiter perspective
     4. resume_tailorer: Analyzes missing info and generates tailored resume

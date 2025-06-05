@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
-from src.tools.state_storage_manager import StateStorageManager
+from src.tools.state_data_manager import StateDataManager
 from src.tools.parse_pdf_tool import parse_pdf
 from src.llm_config import model
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
@@ -48,14 +48,14 @@ async def file_parser(
         # Setup metadata
         setup_profile_metadata(config, "file_parser", user_id)
 
-        # Read all files content using StateStorageManager
+        # Read all files content using StateDataManager
         all_content = []
         missing_files = []
         original_resume_content = None  # Track if we find an ORIGINAL_RESUME file
         
         for file_name in file_names:
             # Read file bytes for potential PDF processing
-            file_content_bytes = await StateStorageManager.read_temp_file_bytes(
+            file_content_bytes = await StateDataManager.read_temp_file_bytes(
                 user_id, file_name
             )
 
@@ -89,7 +89,7 @@ async def file_parser(
 
         # Save original resume if we found one
         if original_resume_content:
-            from src.tools.state_storage_manager import save_processing_result
+            from src.tools.state_data_manager import save_processing_result
             await save_processing_result(user_id, None, "original_resume", original_resume_content)
             logging.debug(f"[DEBUG] Updated original_resume field with content from ORIGINAL_RESUME file")
 

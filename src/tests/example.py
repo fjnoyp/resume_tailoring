@@ -9,7 +9,7 @@ import asyncio
 from langsmith import Client
 from langsmith.evaluation import StringDistanceEvaluator
 from full_tailor_resume.resume_tailoring_agent import agent
-from src.tools.state_storage_manager import StateStorageManager
+from src.tools.state_data_manager import StateDataManager
 from src.tools.file_path_manager import get_file_paths
 from openevals.llm import create_llm_as_judge
 from openevals.prompts import (
@@ -40,15 +40,15 @@ async def fetch_test_case_inputs(user_id, job_id):
     """
     file_paths = get_file_paths(user_id, job_id)
     job_description = (
-        await StateStorageManager._load_file_content(file_paths.job_description_path)
+        await StateDataManager._load_file_content(file_paths.job_description_path)
         or ""
     )
     reference_resume = (
-        await StateStorageManager._load_file_content(file_paths.original_resume_path)
+        await StateDataManager._load_file_content(file_paths.original_resume_path)
         or ""
     )
     full_resume = (
-        await StateStorageManager._load_file_content(file_paths.user_full_resume_path)
+        await StateDataManager._load_file_content(file_paths.user_full_resume_path)
         or ""
     )
 
@@ -69,13 +69,13 @@ async def fetch_ideal_outputs(user_id, job_id):
     Fetch the ideal output files (tailored resume and cover letter) from Supabase Storage for a given user_id and job_id.
     """
     tailored_resume = (
-        await StateStorageManager._load_file_content(
+        await StateDataManager._load_file_content(
             f"{user_id}/{job_id}/ideal_outputs/TAILORED_RESUME.md"
         )
         or ""
     )
     cover_letter = (
-        await StateStorageManager._load_file_content(
+        await StateDataManager._load_file_content(
             f"{user_id}/{job_id}/ideal_outputs/COVER_LETTER.md"
         )
         or ""
@@ -105,14 +105,14 @@ async def target(inputs: dict) -> dict:
     logging.info(f"Calling agent for {user_id}/{job_id}")
     await agent.ainvoke({"input": prompt})
 
-    # 2. Read the results using StateStorageManager
+    # 2. Read the results using StateDataManager
     file_paths = get_file_paths(user_id, job_id)
     tailored_resume = (
-        await StateStorageManager._load_file_content(file_paths.tailored_resume_path)
+        await StateDataManager._load_file_content(file_paths.tailored_resume_path)
         or ""
     )
     cover_letter = (
-        await StateStorageManager._load_file_content(file_paths.cover_letter_path) or ""
+        await StateDataManager._load_file_content(file_paths.cover_letter_path) or ""
     )
 
     if not tailored_resume or not cover_letter:

@@ -1,9 +1,10 @@
 """
-State-Aware Storage Manager
+State-Aware Data Manager
 
-Unified storage operations that understand state structure and provide high-level
-operations for loading and saving state data. This is the ONLY public interface
-for storage operations - nodes should not access storage directly.
+Unified data persistence operations that understand state structure and provide high-level
+operations for loading and saving state data across database tables and file storage. 
+This is the ONLY public interface for state persistence operations - nodes should not 
+access the database or storage directly.
 """
 
 import logging
@@ -66,12 +67,13 @@ class FileInfo:
     last_modified: Optional[str] = None
 
 
-class StateStorageManager:
+class StateDataManager:
     """
-    Unified storage manager that understands state structure and provides
-    high-level operations for loading and saving state data.
+    Unified data persistence manager that understands state structure and provides
+    high-level operations for loading and saving state data across database tables
+    and file storage.
 
-    This is the ONLY public interface for storage operations.
+    This is the ONLY public interface for state persistence operations.
     """
 
     @staticmethod
@@ -97,7 +99,7 @@ class StateStorageManager:
 
             # Load user data if needed
             if mode in [StateLoadMode.RESUME_TAILORING, StateLoadMode.USER_PROFILE_UPDATE, StateLoadMode.COVER_LETTER]:
-                user_data = await StateStorageManager._load_user_data(user_id)
+                user_data = await StateDataManager._load_user_data(user_id)
                 if user_data:
                     if mode == StateLoadMode.USER_PROFILE_UPDATE:
                         loaded_fields["current_full_resume"] = user_data.get("full_resume", "")
@@ -112,7 +114,7 @@ class StateStorageManager:
 
             # Load job data if needed
             if job_id and mode in [StateLoadMode.RESUME_TAILORING, StateLoadMode.COVER_LETTER]:
-                job_data = await StateStorageManager._load_job_data(job_id)
+                job_data = await StateDataManager._load_job_data(job_id)
                 if job_data:
                     loaded_fields["job_description"] = job_data.get("job_description", "")
                     
@@ -148,14 +150,14 @@ class StateStorageManager:
                 )
 
             logging.debug(
-                f"[StateStorage] Successfully loaded {len(loaded_fields)} fields for {mode.value}"
+                f"[StateData] Successfully loaded {len(loaded_fields)} fields for {mode.value}"
             )
             return StateLoadResult(
                 success=True, loaded_fields=loaded_fields, missing_fields=[]
             )
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error loading state data: {e}")
+            logging.error(f"[StateData] Error loading state data: {e}")
             return StateLoadResult(
                 success=False,
                 loaded_fields={},
@@ -187,15 +189,15 @@ class StateStorageManager:
                          "job_title", "company_name"]
 
             if field_name in user_fields:
-                return await StateStorageManager._save_user_field(user_id, field_name, content)
+                return await StateDataManager._save_user_field(user_id, field_name, content)
             elif field_name in job_fields and job_id:
-                return await StateStorageManager._save_job_field(job_id, field_name, content)
+                return await StateDataManager._save_job_field(job_id, field_name, content)
             else:
-                logging.error(f"[StateStorage] Unknown field name or missing job_id: {field_name}")
+                logging.error(f"[StateData] Unknown field name or missing job_id: {field_name}")
                 return False
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error saving {field_name}: {e}")
+            logging.error(f"[StateData] Error saving {field_name}: {e}")
             return False
 
     @staticmethod
@@ -215,7 +217,7 @@ class StateStorageManager:
         """
         results = {}
         for field_name, content in fields.items():
-            results[field_name] = await StateStorageManager.save_state_field(
+            results[field_name] = await StateDataManager.save_state_field(
                 user_id, job_id, field_name, content
             )
         return results
@@ -243,7 +245,7 @@ class StateStorageManager:
             return None
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error reading file {filename}: {e}")
+            logging.error(f"[StateData] Error reading file {filename}: {e}")
             return None
 
     @staticmethod
@@ -262,20 +264,20 @@ class StateStorageManager:
         """
         try:
             file_path = f"{user_id}/temp/{filename}"
-            logging.debug(f"[StateStorage] Attempting to read file: {file_path}")
+            logging.debug(f"[StateData] Attempting to read file: {file_path}")
             
             file_bytes = await _read_file_from_bucket(file_path)
             
             if file_bytes:
-                logging.debug(f"[StateStorage] Successfully read file: {file_path}, size: {len(file_bytes)} bytes")
+                logging.debug(f"[StateData] Successfully read file: {file_path}, size: {len(file_bytes)} bytes")
                 return file_bytes
             else:
-                logging.error(f"[StateStorage] File read returned None/empty: {file_path}")
+                logging.error(f"[StateData] File read returned None/empty: {file_path}")
                 return None
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error reading file bytes {filename}: {e}")
-            logging.error(f"[StateStorage] Full path attempted: {user_id}/temp/{filename}")
+            logging.error(f"[StateData] Error reading file bytes {filename}: {e}")
+            logging.error(f"[StateData] Full path attempted: {user_id}/temp/{filename}")
             return None
 
     @staticmethod
@@ -297,14 +299,14 @@ class StateStorageManager:
             result = await _delete_file_from_bucket(file_path)
             
             if result:
-                logging.debug(f"[StateStorage] Deleted file: {file_path}")
+                logging.debug(f"[StateData] Deleted file: {file_path}")
                 return True
             else:
-                logging.error(f"[StateStorage] Failed to delete file: {filename}")
+                logging.error(f"[StateData] Failed to delete file: {filename}")
                 return False
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error deleting file {filename}: {e}")
+            logging.error(f"[StateData] Error deleting file {filename}: {e}")
             return False
 
     @staticmethod
@@ -330,7 +332,7 @@ class StateStorageManager:
             # Validate role
             valid_roles = ['user', 'ai', 'system', 'tool']
             if role not in valid_roles:
-                logging.error(f"[StateStorage] Invalid role: {role}. Must be one of {valid_roles}")
+                logging.error(f"[StateData] Invalid role: {role}. Must be one of {valid_roles}")
                 return False
 
             def _sync_save_message():
@@ -350,14 +352,14 @@ class StateStorageManager:
             success = await asyncio.to_thread(_sync_save_message)
             
             if success:
-                logging.debug(f"[StateStorage] Saved chat message for job {job_id}: {role} - {len(content)} chars")
+                logging.debug(f"[StateData] Saved chat message for job {job_id}: {role} - {len(content)} chars")
                 return True
             else:
-                logging.error(f"[StateStorage] Failed to save chat message for job {job_id}")
+                logging.error(f"[StateData] Failed to save chat message for job {job_id}")
                 return False
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error saving chat message: {e}")
+            logging.error(f"[StateData] Error saving chat message: {e}")
             return False
 
     # Private helper methods for database operations
@@ -373,7 +375,7 @@ class StateStorageManager:
             
             return await asyncio.to_thread(_sync_load_user)
         except Exception as e:
-            logging.error(f"[StateStorage] Error loading user data: {e}")
+            logging.error(f"[StateData] Error loading user data: {e}")
             return None
 
     @staticmethod
@@ -387,7 +389,7 @@ class StateStorageManager:
             
             return await asyncio.to_thread(_sync_load_job)
         except Exception as e:
-            logging.error(f"[StateStorage] Error loading job data: {e}")
+            logging.error(f"[StateData] Error loading job data: {e}")
             return None
 
     @staticmethod
@@ -407,14 +409,14 @@ class StateStorageManager:
             success = await asyncio.to_thread(_sync_save_user)
             
             if success:
-                logging.debug(f"[StateStorage] Updated user {field_name}: {len(content)} chars")
+                logging.debug(f"[StateData] Updated user {field_name}: {len(content)} chars")
                 return True
             else:
-                logging.error(f"[StateStorage] Failed to update user {field_name}")
+                logging.error(f"[StateData] Failed to update user {field_name}")
                 return False
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error saving user field {field_name}: {e}")
+            logging.error(f"[StateData] Error saving user field {field_name}: {e}")
             return False
 
     @staticmethod
@@ -434,28 +436,28 @@ class StateStorageManager:
             success = await asyncio.to_thread(_sync_save_job)
             
             if success:
-                logging.debug(f"[StateStorage] Updated job {field_name}: {len(content)} chars")
+                logging.debug(f"[StateData] Updated job {field_name}: {len(content)} chars")
                 return True
             else:
-                logging.error(f"[StateStorage] Failed to update job {field_name}")
+                logging.error(f"[StateData] Failed to update job {field_name}")
                 return False
 
         except Exception as e:
-            logging.error(f"[StateStorage] Error saving job field {field_name}: {e}")
+            logging.error(f"[StateData] Error saving job field {field_name}: {e}")
             return False
 
 
 # Convenience functions for common operations
 async def load_resume_tailoring_data(user_id: str, job_id: str) -> StateLoadResult:
     """Load data for resume tailoring pipeline."""
-    return await StateStorageManager.load_state_data(
+    return await StateDataManager.load_state_data(
         user_id, job_id, StateLoadMode.RESUME_TAILORING
     )
 
 
 async def load_user_profile_data(user_id: str) -> StateLoadResult:
     """Load data for user profile updates."""
-    return await StateStorageManager.load_state_data(
+    return await StateDataManager.load_state_data(
         user_id, None, StateLoadMode.USER_PROFILE_UPDATE
     )
 
@@ -464,6 +466,6 @@ async def save_processing_result(
     user_id: str, job_id: Optional[str], field_name: str, content: str
 ) -> bool:
     """Save a processing result to the database."""
-    return await StateStorageManager.save_state_field(
+    return await StateDataManager.save_state_field(
         user_id, job_id, field_name, content
     )

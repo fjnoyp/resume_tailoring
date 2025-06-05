@@ -8,7 +8,7 @@ This folder contains the storage management system for the Resume Tailoring plat
 
 ### Architecture Components
 
-#### 1. **StateStorageManager** (`state_storage_manager.py`) - **PRIMARY INTERFACE**
+#### 1. **StateDataManager** (`state_storage_manager.py`) - **PRIMARY INTERFACE**
 - **Main public interface** for all storage operations
 - Provides high-level, state-aware operations
 - Handles loading/saving of state fields with proper validation
@@ -22,18 +22,18 @@ This folder contains the storage management system for the Resume Tailoring plat
 #### 3. **Private Storage Implementation** (`_supabase_storage_tools.py`) - **INTERNAL ONLY**
 - Low-level Supabase storage operations
 - **Private module** (underscore prefix) - should NOT be imported directly
-- Only used internally by StateStorageManager
+- Only used internally by StateDataManager
 
 #### 4. **Storage Tools** (`storage_tools.py`) - **AGENT TOOLS**
 - LangChain-compatible tools for agents that need storage access
-- Uses StateStorageManager as backend
+- Uses StateDataManager as backend
 - For use in agent workflows that require file operations
 
 ### Usage Patterns
 
-#### ✅ **CORRECT - Use StateStorageManager**
+#### ✅ **CORRECT - Use StateDataManager**
 ```python
-from src.tools.state_storage_manager import StateStorageManager, load_resume_tailoring_data
+from src.tools.state_storage_manager import StateDataManager, load_resume_tailoring_data
 
 # Load state data
 result = await load_resume_tailoring_data(user_id, job_id)
@@ -41,10 +41,10 @@ if result.success:
     job_description = result.loaded_fields["job_description"]
 
 # Save processing results
-await StateStorageManager.save_state_field(user_id, job_id, "tailored_resume", content)
+await StateDataManager.save_state_field(user_id, job_id, "tailored_resume", content)
 
 # Read custom files
-file_content = await StateStorageManager.read_file(user_id, "resume.pdf")
+file_content = await StateDataManager.read_file(user_id, "resume.pdf")
 ```
 
 #### ✅ **CORRECT - Use File Path Manager for paths**
@@ -71,7 +71,7 @@ from src.tools._supabase_storage_tools import _read_file_from_bucket
 
 ### Key Benefits
 
-1. **Single Source of Truth**: StateStorageManager is the only public interface
+1. **Single Source of Truth**: StateDataManager is the only public interface
 2. **Type Safety**: File paths are managed centrally with type checking
 3. **Maintainability**: Changes to storage implementation only affect private modules
 4. **Consistency**: All nodes use the same interface patterns
@@ -92,11 +92,11 @@ content = content_bytes.decode("utf-8") if content_bytes else ""
 
 **New:**
 ```python
-from src.tools.state_storage_manager import StateStorageManager
+from src.tools.state_storage_manager import StateDataManager
 from src.tools.file_path_manager import get_file_paths
 
 file_paths = get_file_paths(user_id, job_id)
-content = await StateStorageManager._load_file_content(file_paths.resume_path) or ""
+content = await StateDataManager._load_file_content(file_paths.resume_path) or ""
 ```
 
 ## Tools Provided

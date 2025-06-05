@@ -2,7 +2,7 @@
 Private Supabase Storage Implementation
 
 Low-level storage operations for Supabase. This module should NOT be imported
-directly by nodes or other application code. Use StateStorageManager instead.
+directly by nodes or other application code. Use StateDataManager instead.
 """
 
 import logging
@@ -11,7 +11,7 @@ from typing import Optional
 from supabase import create_client, Client
 import asyncio
 
-# Private module - should only be used by StateStorageManager
+# Private module - should only be used by StateDataManager
 supabase_client: Client = create_client(
     os.environ.get("SUPABASE_URL"), 
     os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # This bypasses RLS
@@ -24,7 +24,7 @@ async def _read_file_from_bucket(file_path: str) -> Optional[bytes]:
     """
     Retrieves the raw bytes of a file from a specific Supabase storage path.
 
-    PRIVATE: Use StateStorageManager.read_file() instead.
+    PRIVATE: Use StateDataManager.read_file() instead.
 
     Args:
         file_path: Full path (including filename) within the bucket.
@@ -55,7 +55,7 @@ async def _list_files_in_bucket(path: str = "") -> Optional[list]:
     """
     Lists all files and folders at a given Supabase storage path.
 
-    PRIVATE: Use StateStorageManager.list_files() instead.
+    PRIVATE: Use StateDataManager.list_files() instead.
 
     Args:
         path: Folder or subdirectory path (default is root).
@@ -78,7 +78,7 @@ async def _upload_file_to_bucket(file_path: str, file_content: str) -> Optional[
     """
     Uploads or overwrites a file in a Supabase storage specified path.
 
-    PRIVATE: Use StateStorageManager.save_file() instead.
+    PRIVATE: Use StateDataManager.save_file() instead.
 
     Args:
         file_path: Full destination path (including filename).
@@ -104,7 +104,7 @@ async def _delete_file_from_bucket(file_path: str) -> Optional[dict]:
     """
     Permanently deletes a file from a given Supabase storage path.
 
-    PRIVATE: Use StateStorageManager.delete_file() instead.
+    PRIVATE: Use StateDataManager.delete_file() instead.
 
     Args:
         file_path: Full path (including filename) of the file to delete.

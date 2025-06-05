@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from src.llm_config import model
 from src.graphs.resume_rewrite.state import GraphState, set_error
-from src.tools.state_storage_manager import save_processing_result
+from src.tools.state_data_manager import save_processing_result
 from src.utils.node_utils import validate_fields, setup_metadata, handle_error
 from langgraph.types import interrupt
 from langgraph.errors import GraphInterrupt

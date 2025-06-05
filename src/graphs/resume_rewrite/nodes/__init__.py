@@ -8,7 +8,7 @@ Analysis Pipeline:
 - resume_screener: Recruiter perspective evaluation
 - resume_tailorer: Resume customization with user interaction
 
-State management is handled by StateStorageManager for unified operations.
+State management is handled by StateDataManager for unified operations.
 """
 
 from .job_analyzer import job_analyzer

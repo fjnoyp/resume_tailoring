@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from src.llm_config import model
 from src.graphs.info_collection.state import InfoCollectionState
 from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
-from src.tools.state_storage_manager import StateStorageManager
+from src.tools.state_data_manager import StateDataManager
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -83,7 +83,7 @@ Let's start with the first item. Can you tell me about: {missing_info[0] if miss
             ai_message = AIMessage(content=response_text)
 
             # Save AI message to database
-            await StateStorageManager.save_chat_message(
+            await StateDataManager.save_chat_message(
                 job_id=job_id,
                 content=response_text,
                 role="ai"
@@ -107,7 +107,7 @@ Let's start with the first item. Can you tell me about: {missing_info[0] if miss
             ai_message = AIMessage(content=farewell_text)
 
             # Save AI farewell message to database
-            await StateStorageManager.save_chat_message(
+            await StateDataManager.save_chat_message(
                 job_id=job_id,
                 content=farewell_text,
                 role="ai",
@@ -145,7 +145,7 @@ Keep responses brief and focused on collecting the specific information needed.
         ai_message = AIMessage(content=response.content)
 
         # Save AI response message to database
-        await StateStorageManager.save_chat_message(
+        await StateDataManager.save_chat_message(
             job_id=job_id,
             content=response.content,
             role="ai",

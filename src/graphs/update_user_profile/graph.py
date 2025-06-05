@@ -6,7 +6,7 @@ Handles different ways to update a user's full resume:
 2. Parse LinkedIn profile and merge
 3. Parse additional files and merge
 
-Uses StateStorageManager for unified state management.
+Uses StateDataManager for unified state management.
 """
 
 from langgraph.graph import StateGraph, START, END
@@ -16,12 +16,12 @@ from src.graphs.update_user_profile.nodes.parse_linkedin_profile import (
 )
 from src.graphs.update_user_profile.nodes.file_parser import file_parser
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
-from src.tools.state_storage_manager import load_user_profile_data
+from src.tools.state_data_manager import load_user_profile_data
 
 
 async def initialize_profile_state(state: UpdateUserProfileState, config) -> dict:
     """
-    Initialize state by loading user profile data using StateStorageManager.
+    Initialize state by loading user profile data using StateDataManager.
 
     Replaces the old data_loader node with unified state management.
     """
@@ -37,7 +37,7 @@ async def initialize_profile_state(state: UpdateUserProfileState, config) -> dic
             "graph": "update_user_profile",
         }
 
-        # Load user profile data using StateStorageManager
+        # Load user profile data using StateDataManager
         load_result = await load_user_profile_data(user_id)
 
         if not load_result.success:
@@ -54,7 +54,7 @@ def create_update_user_profile_graph() -> StateGraph:
     Creates the user profile update graph with unified state management.
 
     Pipeline:
-    1. initialize_profile_state: Load current full resume using StateStorageManager
+    1. initialize_profile_state: Load current full resume using StateDataManager
     2. Route based on operation_mode:
        - "update_resume": Direct to resume_updater
        - "parse_linkedin": parse_linkedin_profile → resume_updater

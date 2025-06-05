@@ -1,13 +1,13 @@
 """
 Storage Tools for LangChain Agents
 
-Provides LangChain-compatible tools that use StateStorageManager as the backend.
+Provides LangChain-compatible tools that use StateDataManager as the backend.
 These tools can be used by agents that need storage operations.
 """
 
 from langchain_core.tools import tool
 from typing import Optional, List
-from src.tools.state_storage_manager import StateStorageManager
+from src.tools.state_data_manager import StateDataManager
 
 
 @tool
@@ -21,7 +21,7 @@ async def read_file_from_bucket(file_path: str) -> Optional[str]:
     Returns:
         The file content as string if found, None otherwise
     """
-    return await StateStorageManager._load_file_content(file_path)
+    return await StateDataManager._load_file_content(file_path)
 
 
 @tool
