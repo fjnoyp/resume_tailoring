@@ -147,8 +147,13 @@ Return both the missing info analysis and the tailored resume.
         model_with_structure = model.with_structured_output(ResumeAnalysisAndGeneration)
         result = await model_with_structure.ainvoke(prompt, config=config)
 
+        # Check if model call returned valid result
+        if result is None:
+            logging.error("[ERROR] Model returned None - structured output parsing may have failed")
+            return {"error": "Failed to generate structured resume analysis - model returned invalid response"}
+
         logging.debug(
-            f"[DEBUG] Generated resume with {len(result.missing_info)} missing items identified"
+            f"[DEBUG] Generated resume with {len(result.missing_info) if result and result.missing_info else 0} missing items identified"
         )
 
         # If we have missing info, interrupt to let client decide whether to collect more info
@@ -198,6 +203,12 @@ Return both the missing info analysis and the tailored resume.
                     result = await model_with_structure.ainvoke(
                         updated_prompt, config=config
                     )
+                    
+                    # Check if model call returned valid result after restart
+                    if result is None:
+                        logging.error("[ERROR] Model returned None on restart - structured output parsing may have failed")
+                        return {"error": "Failed to regenerate resume after info collection - model returned invalid response"}
+                        
                     logging.debug(
                         f"[DEBUG] Regenerated resume with {len(result.missing_info)} remaining missing items"
                     )
@@ -223,7 +234,13 @@ Return both the missing info analysis and the tailored resume.
         return {
             "tailored_resume": result.tailored_resume,
             "missing_info": (
-                "\n".join(result.missing_info) if result.missing_info else ""
+                # Workaround for sometimes returning a list instead of a string
+                # We should actually be consistent in the output type instead
+                # TODO: Consistently return a list or a string
+                "\n".join(result.missing_info) 
+                if result.missing_info and isinstance(result.missing_info, list)
+                else str(result.missing_info) if result.missing_info 
+                else ""
             ),
         }
 
