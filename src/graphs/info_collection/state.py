@@ -17,6 +17,7 @@ class InfoCollectionState(BaseModel):
     INPUTS:
         missing_info: List of specific missing information to collect
         user_id: User identifier for context
+        job_id: Job identifier for database operations
         full_resume: Current full resume content for updating
 
     CONVERSATION:
@@ -31,6 +32,7 @@ class InfoCollectionState(BaseModel):
     # Essential inputs
     missing_info: List[str] = Field(..., description="What we need to collect")
     user_id: str = Field(..., description="User context")
+    job_id: str = Field(..., description="Job identifier for database operations")
     full_resume: str = Field(..., description="Resume to update")
 
     # Conversation management (required for react agent)
@@ -61,12 +63,13 @@ def create_info_collection_state_from_interrupt(
     return InfoCollectionState(
         missing_info=interrupt_data.get("missing_info", []),
         user_id=interrupt_data.get("user_id", ""),
+        job_id=interrupt_data.get("job_id", ""),
         full_resume=interrupt_data.get("full_resume", ""),
     )
 
 
 def create_info_collection_state(
-    missing_info_requirements: str, user_id: str, full_resume: str = ""
+    missing_info_requirements: str, user_id: str, job_id: str = "", full_resume: str = ""
 ) -> InfoCollectionState:
     """
     Legacy function for backward compatibility.
@@ -74,6 +77,7 @@ def create_info_collection_state(
     Args:
         missing_info_requirements: JSON string with missing info analysis
         user_id: User identifier
+        job_id: Job identifier for database operations
         full_resume: Current full resume content
 
     Returns:
@@ -92,5 +96,6 @@ def create_info_collection_state(
     return InfoCollectionState(
         missing_info=missing_info,
         user_id=user_id,
+        job_id=job_id,
         full_resume=full_resume,
     )

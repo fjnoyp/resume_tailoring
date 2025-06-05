@@ -307,6 +307,59 @@ class StateStorageManager:
             logging.error(f"[StateStorage] Error deleting file {filename}: {e}")
             return False
 
+    @staticmethod
+    async def save_chat_message(
+        job_id: str,
+        content: str,
+        role: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Save a chat message to the chat_messages table.
+
+        Args:
+            job_id: Job identifier
+            content: Message content
+            role: Message role ('user', 'ai', 'system', 'tool')
+            metadata: Optional metadata as JSON object
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Validate role
+            valid_roles = ['user', 'ai', 'system', 'tool']
+            if role not in valid_roles:
+                logging.error(f"[StateStorage] Invalid role: {role}. Must be one of {valid_roles}")
+                return False
+
+            def _sync_save_message():
+                insert_data = {
+                    "job_id": job_id,
+                    "content": content,
+                    "role": role
+                }
+                
+                if metadata:
+                    insert_data["metadata"] = metadata
+                
+                result = supabase.table("chat_messages").insert(insert_data).execute()
+                return result.data is not None and len(result.data) > 0
+            
+            # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
+            success = await asyncio.to_thread(_sync_save_message)
+            
+            if success:
+                logging.debug(f"[StateStorage] Saved chat message for job {job_id}: {role} - {len(content)} chars")
+                return True
+            else:
+                logging.error(f"[StateStorage] Failed to save chat message for job {job_id}")
+                return False
+
+        except Exception as e:
+            logging.error(f"[StateStorage] Error saving chat message: {e}")
+            return False
+
     # Private helper methods for database operations
 
     @staticmethod

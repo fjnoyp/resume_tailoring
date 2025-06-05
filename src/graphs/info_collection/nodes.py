@@ -13,6 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from src.llm_config import model
 from src.graphs.info_collection.state import InfoCollectionState
 from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
+from src.tools.state_storage_manager import StateStorageManager
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -45,13 +46,14 @@ async def info_collector_agent(
     try:
         # Validate required fields using dot notation
         error_msg = validate_fields(
-            state, ["missing_info", "user_id"], "info collection"
+            state, ["missing_info", "user_id", "job_id"], "info collection"
         )
         if error_msg:
             return {"error": error_msg}
 
         # Extract fields using type-safe dot notation
         user_id = state.user_id
+        job_id = state.job_id
         missing_info = state.missing_info
         messages = state.messages
 
@@ -79,6 +81,15 @@ I need to collect the following:
 Let's start with the first item. Can you tell me about: {missing_info[0] if missing_info else "your experience"}?"""
 
             ai_message = AIMessage(content=response_text)
+
+            # Save AI message to database
+            await StateStorageManager.save_chat_message(
+                job_id=job_id,
+                content=response_text,
+                role="ai"
+            )
+            logging.debug(f"[InfoCollector] Saved AI intro message to database for job {job_id}")
+
             return {"messages": [ai_message]}
 
         # Continue conversation - analyze last user message
@@ -94,6 +105,15 @@ Let's start with the first item. Can you tell me about: {missing_info[0] if miss
 
             farewell_text = "Thank you! I've collected all the information. Your resume will be updated shortly."
             ai_message = AIMessage(content=farewell_text)
+
+            # Save AI farewell message to database
+            await StateStorageManager.save_chat_message(
+                job_id=job_id,
+                content=farewell_text,
+                role="ai",
+                metadata={"conversation_complete": True, "collected_info_length": len(collected_info)}
+            )
+            logging.debug(f"[InfoCollector] Saved AI farewell message to database for job {job_id}")
 
             return {
                 "messages": [ai_message],
@@ -123,6 +143,15 @@ Keep responses brief and focused on collecting the specific information needed.
 
         response = await model.ainvoke(context_messages, config=config)
         ai_message = AIMessage(content=response.content)
+
+        # Save AI response message to database
+        await StateStorageManager.save_chat_message(
+            job_id=job_id,
+            content=response.content,
+            role="ai",
+            metadata={"missing_info_remaining": missing_info}
+        )
+        logging.debug(f"[InfoCollector] Saved AI response message to database for job {job_id}")
 
         return {"messages": [ai_message]}
 
