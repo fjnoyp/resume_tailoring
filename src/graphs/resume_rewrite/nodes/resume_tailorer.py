@@ -233,15 +233,7 @@ Return both the missing info analysis and the tailored resume.
 
         return {
             "tailored_resume": result.tailored_resume,
-            "missing_info": (
-                # Workaround for sometimes returning a list instead of a string
-                # We should actually be consistent in the output type instead
-                # TODO: Consistently return a list or a string
-                "\n".join(result.missing_info) 
-                if result.missing_info and isinstance(result.missing_info, list)
-                else str(result.missing_info) if result.missing_info 
-                else ""
-            ),
+            "missing_info": result.missing_info,
         }
 
     except GraphInterrupt:
