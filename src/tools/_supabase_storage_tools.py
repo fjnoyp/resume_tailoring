@@ -12,12 +12,29 @@ from supabase import create_client, Client
 import asyncio
 
 # Private module - should only be used by StateDataManager
-supabase_client: Client = create_client(
-    os.environ.get("SUPABASE_URL"), 
-    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # This bypasses RLS
-)
-
+_supabase_client: Optional[Client] = None
 bucket_name = "user-files"
+
+
+def _get_supabase_client() -> Client:
+    """
+    Lazy initialization of Supabase client to ensure environment variables 
+    are available when accessed in cloud deployments.
+    """
+    global _supabase_client
+    if _supabase_client is None:
+        supabase_url = os.environ.get("SUPABASE_URL")
+        supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        
+        if not supabase_url:
+            raise ValueError("SUPABASE_URL environment variable is required")
+        if not supabase_key:
+            raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
+            
+        _supabase_client = create_client(supabase_url, supabase_key)
+        logging.debug("[Storage] Supabase client initialized successfully")
+    
+    return _supabase_client
 
 
 async def _read_file_from_bucket(file_path: str) -> Optional[bytes]:
@@ -33,6 +50,7 @@ async def _read_file_from_bucket(file_path: str) -> Optional[bytes]:
         The file content as bytes if found, None otherwise
     """
     try:
+        supabase_client = _get_supabase_client()
         logging.debug(f"[Storage] Attempting to download from bucket '{bucket_name}' path: {file_path}")
         
         response = await asyncio.to_thread(
@@ -64,6 +82,7 @@ async def _list_files_in_bucket(path: str = "") -> Optional[list]:
         A list of file details if successful, None otherwise
     """
     try:
+        supabase_client = _get_supabase_client()
         response = await asyncio.to_thread(
             lambda: supabase_client.storage.from_(bucket_name).list(path)
         )
@@ -88,6 +107,7 @@ async def _upload_file_to_bucket(file_path: str, file_content: str) -> Optional[
         The upload response dict if successful, None otherwise
     """
     try:
+        supabase_client = _get_supabase_client()
         response = await asyncio.to_thread(
             lambda: supabase_client.storage.from_(bucket_name).upload(
                 file_path, file_content.encode("utf-8"), {"upsert": "true"}
@@ -113,6 +133,7 @@ async def _delete_file_from_bucket(file_path: str) -> Optional[dict]:
         The delete response dict if successful, None otherwise
     """
     try:
+        supabase_client = _get_supabase_client()
         response = await asyncio.to_thread(
             lambda: supabase_client.storage.from_(bucket_name).remove([file_path])
         )

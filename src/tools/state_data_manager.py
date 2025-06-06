@@ -17,26 +17,13 @@ from datetime import datetime, timezone
 from src.tools._supabase_storage_tools import (
     _read_file_from_bucket,
     _delete_file_from_bucket,
+    _get_supabase_client,
 )
-
-# Import Supabase client for database operations
-from supabase import create_client, Client
-import os
 
 logging.basicConfig(level=logging.DEBUG)
 
 # Type variables for state types
 StateType = TypeVar("StateType", bound=Dict[str, Any])
-
-# Initialize Supabase client
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # This bypasses RLS
-
-if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-    raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables")
-
-# Use service role for AI operations - bypasses RLS policies  
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
 class StateLoadMode(Enum):
@@ -345,7 +332,7 @@ class StateDataManager:
                 if metadata:
                     insert_data["metadata"] = metadata
                 
-                result = supabase.table("chat_messages").insert(insert_data).execute()
+                result = _get_supabase_client().table("chat_messages").insert(insert_data).execute()
                 return result.data is not None and len(result.data) > 0
             
             # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
@@ -370,7 +357,7 @@ class StateDataManager:
         try:
             # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
             def _sync_load_user():
-                result = supabase.table("users").select("*").eq("id", user_id).execute()
+                result = _get_supabase_client().table("users").select("*").eq("id", user_id).execute()
                 return result.data[0] if result.data else None
             
             return await asyncio.to_thread(_sync_load_user)
@@ -384,7 +371,7 @@ class StateDataManager:
         try:
             # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
             def _sync_load_job():
-                result = supabase.table("jobs").select("*").eq("id", job_id).execute()
+                result = _get_supabase_client().table("jobs").select("*").eq("id", job_id).execute()
                 return result.data[0] if result.data else None
             
             return await asyncio.to_thread(_sync_load_job)
@@ -402,7 +389,7 @@ class StateDataManager:
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
                 
-                result = supabase.table("users").update(update_data).eq("id", user_id).execute()
+                result = _get_supabase_client().table("users").update(update_data).eq("id", user_id).execute()
                 return result.data is not None
             
             # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
@@ -429,7 +416,7 @@ class StateDataManager:
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
                 
-                result = supabase.table("jobs").update(update_data).eq("id", job_id).execute()
+                result = _get_supabase_client().table("jobs").update(update_data).eq("id", job_id).execute()
                 return result.data is not None
             
             # Wrap synchronous Supabase call in asyncio.to_thread to avoid blocking
