@@ -139,6 +139,14 @@ Return ONLY the properly formatted markdown content. Do not include any explanat
             f"[DEBUG] Files parsed: {len(parsed_content)} chars from {len(file_names)} files"
         )
 
+        # Delete all files from temp storage
+        for file_name in file_names:
+            logging.debug(f"[DEBUG] Deleting file from temp storage: {file_name}")
+            try:
+                await StateDataManager.delete_temp_file(user_id, file_name)
+            except Exception as e:
+                logging.error(f"[DEBUG] Error deleting file from temp storage: {e}")
+
         return {"parsed_content": parsed_content}
 
     except Exception as e:
