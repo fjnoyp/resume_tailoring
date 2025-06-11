@@ -12,93 +12,13 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from src.llm_config import model
-from src.graphs.resume_rewrite.state import GraphState, set_error
+from src.graphs.resume_rewrite.state import GraphState
 from src.tools.state_data_manager import save_processing_result
 from src.utils.node_utils import validate_fields, setup_metadata, handle_error
 from langgraph.types import interrupt
 from langgraph.errors import GraphInterrupt
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-def _parse_fallback_response(content: str) -> "ResumeAnalysisAndGeneration":
-    """
-    Parse unstructured AI response as fallback when structured output fails.
-    
-    Args:
-        content: Raw AI response text
-        
-    Returns:
-        ResumeAnalysisAndGeneration object with parsed data
-    """
-    # Simple fallback parsing - look for patterns
-    missing_info = []
-    tailored_resume = content
-    
-    # Try to extract missing_info if present
-    if "missing_info:" in content.lower():
-        lines = content.split('\n')
-        for i, line in enumerate(lines):
-            if "missing_info:" in line.lower():
-                # Look for list items after this line
-                for j in range(i+1, min(i+10, len(lines))):
-                    if lines[j].strip().startswith(('-', '*', '•')):
-                        missing_info.append(lines[j].strip()[1:].strip())
-                    elif lines[j].strip() and not lines[j].startswith(('missing_info:', 'tailored_resume:')):
-                        break
-    
-    # Try to extract tailored_resume if present
-    if "tailored_resume:" in content.lower():
-        lines = content.split('\n')
-        for i, line in enumerate(lines):
-            if "tailored_resume:" in line.lower():
-                tailored_resume = '\n'.join(lines[i+1:]).strip()
-                break
-    
-    return ResumeAnalysisAndGeneration(
-        missing_info=missing_info,
-        tailored_resume=tailored_resume
-    )
-
-
-async def _invoke_with_fallback(model_with_structure, prompt: str, config: RunnableConfig, context: str = "") -> "ResumeAnalysisAndGeneration":
-    """
-    Invoke model with structured output, falling back to manual parsing if needed.
-    
-    Args:
-        model_with_structure: Model configured for structured output
-        prompt: The prompt to send to the model
-        config: LangChain runnable config
-        context: Additional context for error messages (e.g., " on restart")
-        
-    Returns:
-        ResumeAnalysisAndGeneration object
-        
-    Raises:
-        Exception: If all parsing attempts fail
-    """
-    try:
-        result = await model_with_structure.ainvoke(prompt, config=config)
-        return _validate_and_clean_result(result)
-        
-    except Exception as structure_error:
-        logging.error(f"[ERROR] Structured output failed{context}: {structure_error}")
-        # Fallback: try without structured output and parse manually
-        try:
-            raw_result = await model.ainvoke(prompt, config=config)
-            logging.debug(f"[DEBUG] Raw model response{context}: {raw_result}")
-            
-            # Try to parse the raw response
-            if hasattr(raw_result, 'content'):
-                content = raw_result.content
-            else:
-                content = str(raw_result)
-            
-            return _parse_fallback_response(content)
-            
-        except Exception as fallback_error:
-            logging.error(f"[ERROR] Fallback parsing also failed{context}: {fallback_error}")
-            raise Exception(f"Failed to generate resume analysis{context}. Structured output error: {structure_error}. Fallback error: {fallback_error}")
 
 
 class ResumeAnalysisAndGeneration(BaseModel):
@@ -129,56 +49,6 @@ class InfoCollectionResult(BaseModel):
         default="", description="Additional info collected from user"
     )
     updated_full_resume: str = Field(description="Updated full resume with new info")
-
-
-def _validate_and_clean_result(result: ResumeAnalysisAndGeneration) -> ResumeAnalysisAndGeneration:
-    """
-    Validate and clean up the result from AI model.
-    Ensure missing_info is a proper List[str].
-    
-    Args:
-        result: Result from AI model (guaranteed to be non-None)
-        
-    Returns:
-        Cleaned and validated result with missing_info as a List[str]
-        
-    Raises:
-        Exception: If result is invalid
-    """
-    # Validate the result structure
-    if not hasattr(result, 'missing_info'):
-        logging.debug(f"Model response missing 'missing_info' field: {result}")
-        result.missing_info = []
-    
-    if not hasattr(result, 'tailored_resume'):
-        logging.debug(f"Model response missing 'tailored_resume' field: {result}")
-        result.tailored_resume = ""
-    
-    if not result.tailored_resume:
-        logging.debug(f"Model returned empty tailored_resume field: {result}")
-
-    if isinstance(result.missing_info, list):
-        # Already correct, just clean up
-        result.missing_info = [item.strip() for item in result.missing_info if item and item.strip()]
-    elif isinstance(result.missing_info, str):
-        # Anthropic sometimes returns string - convert to list
-        if result.missing_info and result.missing_info.strip():
-            # Split by common delimiters and clean up
-            items = []
-            for line in result.missing_info.split('\n'):
-                line = line.strip()
-                if line.startswith(('-', '*', '•')):
-                    items.append(line[1:].strip())
-                elif line and not line.startswith(('missing_info:', 'tailored_resume:')):
-                    items.append(line)
-            result.missing_info = items
-        else:
-            result.missing_info = []
-    else:
-        # Unexpected type
-        raise Exception(f"Model returned unexpected type for missing_info: {type(result.missing_info)}")
-    
-    return result
 
 
 async def resume_tailorer(state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
@@ -278,22 +148,33 @@ COMPANY_STRATEGY:
 {company_strategy}
 
 REQUIRED OUTPUT FORMAT:
-You must return a structured response with exactly these fields:
+You MUST return a valid JSON object with exactly this structure:
 
-missing_info: ["item 1", "item 2", "item 3"]
-tailored_resume: "# Resume content here..."
+{{
+  "missing_info": ["item 1", "item 2", "item 3"],
+  "tailored_resume": "# Resume content here..."
+}}
 
+CRITICAL JSON REQUIREMENTS:
+- Use curly braces {{ }} for the main object
+- Use square brackets [ ] for the missing_info array
+- Use double quotes " " for all strings
+- Escape any quotes inside strings with backslash
+- missing_info must be an array of strings (can be empty [])
+- tailored_resume must be a markdown-formatted string containing the full resume
 
 BOTH FIELDS ARE MANDATORY - DO NOT OMIT EITHER ONE.
 """
 
-        # Use structured output for reliable parsing
+        # Use structured output for reliable parsing with increased token limit for long resumes
         model_with_structure = model.with_structured_output(ResumeAnalysisAndGeneration)
         
         try:
-            result = await _invoke_with_fallback(model_with_structure, prompt, config)
+            # Increase max_tokens for long resume content
+            result = await model_with_structure.ainvoke(prompt, config=config, max_tokens=4000)
         except Exception as error:
-            return {"error": str(error)}
+            logging.error(f"[ERROR] Structured output failed: {error}")
+            return {"error": f"Failed to generate resume analysis: {error}"}
 
         logging.debug(
             f"[DEBUG] Generated resume with {len(result.missing_info) if result and result.missing_info else 0} missing items identified"
@@ -340,14 +221,16 @@ BOTH FIELDS ARE MANDATORY - DO NOT OMIT EITHER ONE.
                         f"FULL_RESUME:\n{full_resume}",
                         f"FULL_RESUME:\n{working_full_resume}"
                     ).replace(
-                        f"ADDITIONAL_COLLECTED_INFO:\n",
+                        "ADDITIONAL_COLLECTED_INFO:\n",
                         f"ADDITIONAL_COLLECTED_INFO:\n{additional_info}",
                     )
 
                     try:
-                        result = await _invoke_with_fallback(model_with_structure, updated_prompt, config, " on restart")
+                        # Increase max_tokens for long resume content on restart
+                        result = await model_with_structure.ainvoke(updated_prompt, config=config, max_tokens=4000)
                     except Exception as error:
-                        return {"error": str(error)}
+                        logging.error(f"[ERROR] Structured output failed on restart: {error}")
+                        return {"error": f"Failed to generate resume analysis on restart: {error}"}
                         
                     logging.debug(
                         f"[DEBUG] Regenerated resume with {len(result.missing_info)} remaining missing items"
