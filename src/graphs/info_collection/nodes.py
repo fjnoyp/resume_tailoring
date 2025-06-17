@@ -125,6 +125,10 @@ Let's start with the first item. Can you tell me about: {missing_info[0] if miss
         # if not is_user_message(last_message):
         #     return {}  # Wait for user input
 
+        # Get datetime information
+        from datetime import datetime
+        current_datetime = datetime.now().strftime("%A, %d %B %Y %H:%M:%S")
+
         # Generate contextual response
         context_prompt = f"""
 You are a helpful assistant collecting missing resume information. You need to gather:
@@ -134,6 +138,8 @@ Based on the conversation so far, ask relevant follow-up questions to collect th
 Be conversational and helpful. If the user has provided some information, acknowledge it and ask for the next piece.
 
 Keep responses brief and focused on collecting the specific information needed.
+
+Current date and time: {current_datetime}
 """
 
         # Add context to messages for model
