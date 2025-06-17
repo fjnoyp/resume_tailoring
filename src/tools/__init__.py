@@ -26,7 +26,7 @@ from .file_path_manager import (
 from .storage_tools import storage_tools
 
 # Other utilities
-from .parse_pdf_tool import parse_pdf
+from .parse_document_tool import parse_document
 
 # Note: _supabase_storage_tools is private and should not be imported directly
 # Use StateDataManager instead for all storage operations
@@ -46,5 +46,5 @@ __all__ = [
     # Agent Tools
     "storage_tools",
     # Utilities
-    "parse_pdf",
+    "parse_document"
 ]

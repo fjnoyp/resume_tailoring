@@ -10,7 +10,7 @@ from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 
 from src.tools.state_data_manager import StateDataManager
-from src.tools.parse_pdf_tool import parse_pdf
+from src.tools.parse_document_tool import parse_document
 from src.llm_config import model
 from src.graphs.update_user_profile.state import UpdateUserProfileState, set_error
 from src.utils.node_utils import validate_fields, setup_profile_metadata, handle_error
@@ -65,9 +65,10 @@ async def file_parser(
                 missing_files.append(file_name)
                 continue
 
-            # Handle PDF files differently
-            if file_name.lower().endswith(".pdf"):
-                file_content = await parse_pdf(file_content_bytes) or ""
+            # Handle different file types
+            file_extension = file_name.lower().split('.')[-1]
+            if file_extension in ['pdf', 'docx', 'doc']:
+                file_content = await parse_document(file_content_bytes, file_extension) or ""
             else:
                 file_content = file_content_bytes.decode("utf-8")
 
